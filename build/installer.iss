@@ -2,7 +2,7 @@
 ; Vyžaduje Inno Setup 6+. Spúšťa sa po PyInstaller builde (dist/VolbyDekana.exe).
 
 #define MyAppName "Voľby dekana TF SPU"
-#define MyAppVersion "0.11.1"
+#define MyAppVersion "0.12.0"
 #define MyAppPublisher "TF SPU v Nitre"
 #define MyAppExeName "VolbyDekana.exe"
 

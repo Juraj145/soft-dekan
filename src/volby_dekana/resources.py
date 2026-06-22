@@ -58,6 +58,26 @@ def priecinok_udajov() -> str:
     return nahradny
 
 
+def cesta_k_uvodnemu_obrazku() -> str:
+    """Vráti cestu k titulnému obrázku úvodnej obrazovky.
+
+    Uprednostní vlastný obrázok používateľa (ak existuje) v priečinku
+    'Vstupné údaje' alebo v jeho nadradenom priečinku; inak použije zabalený
+    obrázok. Vďaka tomu sa zmena titulného obrázku prejaví v programe bez
+    nutnosti novej inštalácie.
+    """
+    nazvy = ("uvod.png", "uvod.jpg", "uvod.jpeg", "Titulný obrázok.png",
+             "Titulný obrázok.jpg", "Titulný obrázok.jpeg")
+    udaje = priecinok_udajov()
+    priecinky = [udaje, os.path.dirname(udaje)]
+    for priecinok in priecinky:
+        for nazov in nazvy:
+            cesta = os.path.join(priecinok, nazov)
+            if os.path.isfile(cesta):
+                return cesta
+    return cesta_k_asetu("uvod.png")
+
+
 def priecinok_zapisnic() -> str:
     """Vráti (a vytvorí) priečinok pre uložené dokumenty volebnej komisie."""
     return _podpriecinok_udajov(NAZOV_PRIECINKA_ZAPISNICE)

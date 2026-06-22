@@ -12,11 +12,15 @@ from . import __version__
 from .dialogs import ClenDialog
 from .docx_export import uloz_prezencnu_listinu
 from .kandidati_okno import KandidatiPanel
-from .kolo_okno import KoloPanel
+from .kolo_okno import KoloPanel, VolbaStav
 from .komisia_okno import KomisiaPanel
 from .models import POCET_KOMISIA, POCET_RIADKOV_MIESTA, Zhromazdenie
 from .quorum import vyhodnot_kvorum
-from .resources import cesta_k_asetu, priecinok_udajov
+from .resources import (
+    cesta_k_asetu,
+    cesta_k_uvodnemu_obrazku,
+    priecinok_udajov,
+)
 from . import updater
 
 APP_TITLE = "Voľby dekana TF SPU v Nitre"
@@ -114,12 +118,15 @@ class App(tk.Tk):
         self.stranka_listina = self._vytvor_stranku_listina(self.kontajner)
         self.panel_komisia = KomisiaPanel(self.kontajner, self.z)
         self.panel_kandidati = KandidatiPanel(self.kontajner, self.z)
-        self.panel_kolo = KoloPanel(self.kontajner, self.z)
+        self.volba_stav = VolbaStav()
+        self.panel_kolo1 = KoloPanel(self.kontajner, self.z, 1, self.volba_stav)
+        self.panel_kolo2 = KoloPanel(self.kontajner, self.z, 2, self.volba_stav)
         self._stranky = [
-            ("Krok 1 z 4 – Prezenčná listina", self.stranka_listina),
-            ("Krok 2 z 4 – Volebná komisia", self.panel_komisia),
-            ("Krok 3 z 4 – Kandidáti na dekana TF", self.panel_kandidati),
-            ("Krok 4 z 4 – 1. a 2. kolo voľby", self.panel_kolo),
+            ("Krok 1 z 5 – Prezenčná listina", self.stranka_listina),
+            ("Krok 2 z 5 – Volebná komisia", self.panel_komisia),
+            ("Krok 3 z 5 – Kandidáti na dekana TF", self.panel_kandidati),
+            ("Krok 4 z 5 – 1. kolo voľby", self.panel_kolo1),
+            ("Krok 5 z 5 – 2. kolo voľby", self.panel_kolo2),
         ]
         self._zobraz_stranku()
 
@@ -133,11 +140,7 @@ class App(tk.Tk):
         bg_color = "#9AADB7"
         self.uvod = tk.Frame(self, bg=bg_color)
         self.uvod.place(relx=0, rely=0, relwidth=1, relheight=1)
-        self._uvod_img = None
-        try:
-            self._uvod_img = tk.PhotoImage(file=cesta_k_asetu("uvod.png"))
-        except Exception:
-            pass
+        self._uvod_img = self._nacitaj_uvodny_obrazok()
         if self._uvod_img:
             tk.Label(
                 self.uvod, image=self._uvod_img, bg=bg_color, bd=0
@@ -156,6 +159,28 @@ class App(tk.Tk):
         ).place(relx=0.5, rely=0.92, anchor="center")
         self.uvod.lift()
         self.uvod.tkraise()
+
+    def _nacitaj_uvodny_obrazok(self):
+        """Načíta titulný obrázok (vlastný alebo zabalený), prispôsobí obrazovke."""
+        cesta = cesta_k_uvodnemu_obrazku()
+        sirka = self.winfo_screenwidth()
+        vyska = self.winfo_screenheight()
+        try:
+            from PIL import Image, ImageTk
+
+            obr = Image.open(cesta)
+            mierka = min(sirka / obr.width, vyska / obr.height)
+            if mierka > 0:
+                novy = (max(1, int(obr.width * mierka)),
+                        max(1, int(obr.height * mierka)))
+                obr = obr.resize(novy, Image.LANCZOS)
+            return ImageTk.PhotoImage(obr)
+        except Exception:
+            pass
+        try:
+            return tk.PhotoImage(file=cesta)
+        except Exception:
+            return None
 
     def _zavri_uvod(self) -> None:
         if hasattr(self, "uvod") and self.uvod.winfo_exists():
@@ -287,9 +312,9 @@ class App(tk.Tk):
         elif panel is self.panel_kandidati:
             self.panel_kandidati.z = self.z
             self.panel_kandidati.obnov()
-        elif panel is self.panel_kolo:
-            self.panel_kolo.z = self.z
-            self.panel_kolo.obnov()
+        elif panel in (self.panel_kolo1, self.panel_kolo2):
+            panel.z = self.z
+            panel.obnov()
         self._aktualizuj_nav()
 
     def _chybajuce_udaje(self, index: int) -> list[str]:
@@ -392,9 +417,11 @@ class App(tk.Tk):
         if hasattr(self, "panel_kandidati"):
             self.panel_kandidati.z = self.z
             self.panel_kandidati.obnov()
-        if hasattr(self, "panel_kolo"):
-            self.panel_kolo.z = self.z
-            self.panel_kolo.obnov()
+        for nazov in ("panel_kolo1", "panel_kolo2"):
+            if hasattr(self, nazov):
+                panel = getattr(self, nazov)
+                panel.z = self.z
+                panel.obnov()
         if hasattr(self, "btn_dalej"):
             self._aktualizuj_nav()
 

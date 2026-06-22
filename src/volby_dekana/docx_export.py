@@ -10,6 +10,7 @@ from __future__ import annotations
 import copy
 
 from docx import Document
+from docx.enum.text import WD_ALIGN_PARAGRAPH
 from docx.table import Table, _Row
 from docx.text.paragraph import Paragraph
 
@@ -197,8 +198,8 @@ def uloz_hlasovaci_listok(
 # ----------------------------------------------------- zápisnica z volieb (krok 4)
 # Indexy tabuliek v predlohe zápisnice.
 _ZAP_TAB_KOMISIA = 1
-_ZAP_TAB_KOMISIA_AS = 2
-_ZAP_TAB_KOMISIA_REKTOR = 3
+_ZAP_TAB_SENAT = 2
+_ZAP_TAB_REKTOR = 3
 _ZAP_TAB_OSPRAVEDLNENI = 4
 _ZAP_TAB_KANDIDATI = 5
 _ZAP_TAB_SCHVALENI = 6
@@ -260,9 +261,6 @@ def _vypln_pocty(doc: Document, z: Zhromazdenie, v1: VysledokKola,
             _nastav_za_tabulatorom(p, str(pritomni))
         elif t.startswith("Počet ospravedlnených členov"):
             _nastav_za_tabulatorom(p, str(ospravedlneni))
-        elif t.startswith("Miesto konania"):
-            _nastav_za_tabulatorom(p, ", ".join(
-                r.strip() for r in z.miesto_riadky if r.strip()))
         elif t.startswith("Termín vyhotovenia zápisnice"):
             _nastav_za_tabulatorom(p, z.datum)
         elif t.startswith("Počet platných hlasov"):
@@ -291,12 +289,13 @@ def vytvor_zapisnicu(z: Zhromazdenie) -> Document:
     komisia = z.komisia()
     _vypln_tabulku(doc.tables[_ZAP_TAB_KOMISIA],
                    [[f"{i + 1}.", c.cele_meno] for i, c in enumerate(komisia)])
-    kom_as = [c for c in komisia if c.skupina == Skupina.SENAT]
-    kom_rek = [c for c in komisia if c.skupina == Skupina.REKTOR]
-    _vypln_tabulku(doc.tables[_ZAP_TAB_KOMISIA_AS],
-                   [[f"{i + 1}.", c.cele_meno] for i, c in enumerate(kom_as)])
-    _vypln_tabulku(doc.tables[_ZAP_TAB_KOMISIA_REKTOR],
-                   [[f"{i + 1}.", c.cele_meno] for i, c in enumerate(kom_rek)])
+    # Zoznamy členov volebného zhromaždenia podľa skupiny (z kroku 1).
+    senat = [c for c in z.clenovia_zoradeni() if c.skupina == Skupina.SENAT]
+    rektor = [c for c in z.clenovia_zoradeni() if c.skupina == Skupina.REKTOR]
+    _vypln_tabulku(doc.tables[_ZAP_TAB_SENAT],
+                   [[f"{i + 1}.", c.cele_meno] for i, c in enumerate(senat)])
+    _vypln_tabulku(doc.tables[_ZAP_TAB_REKTOR],
+                   [[f"{i + 1}.", c.cele_meno] for i, c in enumerate(rektor)])
 
     ospravedlneni = [
         c for c in z.clenovia_zoradeni() if c.stav == Stav.OSPRAVEDLNENY
@@ -329,8 +328,28 @@ def vytvor_zapisnicu(z: Zhromazdenie) -> Document:
                    [[f"{i + 1}.", c.cele_meno, ""] for i, c in enumerate(komisia)])
 
     _vypln_pocty(doc, z, v1, v2)
+    _vypln_miesto_zapisnica(doc, z)
     _vypln_zavery(doc, v1, v2)
     return doc
+
+
+def _vypln_miesto_zapisnica(doc: Document, z: Zhromazdenie) -> None:
+    """Adresu miesta konania vypíše po riadkoch zarovnanú k pravému okraju."""
+    odseky = doc.paragraphs
+    i = next(
+        (i for i, p in enumerate(odseky)
+         if p.text.strip().startswith("Miesto konania")),
+        None,
+    )
+    if i is None:
+        return
+    riadky = [r.strip() for r in z.miesto_riadky if r.strip()]
+    posledny = odseky[i]
+    for hodnota in riadky:
+        novy = _klon_odseku_za(posledny)
+        _nastav_odsek_text(novy, hodnota)
+        novy.alignment = WD_ALIGN_PARAGRAPH.RIGHT
+        posledny = novy
 
 
 def _vypln_zavery(doc: Document, v1: VysledokKola, v2: VysledokKola | None) -> None:

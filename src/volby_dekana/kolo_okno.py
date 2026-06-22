@@ -1,14 +1,16 @@
-"""Panel kroku 4 – 1. a 2. kolo voľby dekana TF.
+"""Panely krokov 4 a 5 – 1. a 2. kolo voľby dekana TF.
 
-Umožňuje vygenerovať hlasovacie lístky pre dané kolo, zadať počty hlasov
-jednotlivým kandidátom, vyhodnotiť kolo (zvolený / postup do 2. kola) a
-vygenerovať zápisnicu z volebného zhromaždenia.
+Každé kolo je samostatný krok (okno) sprievodcu. V rámci kola sa najprv
+vygenerujú hlasovacie lístky; až potom je možné zadávať počty hlasov a kolo
+vyhodnotiť. Po vyhodnotení sa dá vygenerovať zápisnica z volebného
+zhromaždenia.
 """
 from __future__ import annotations
 
 import os
 import sys
 import tkinter as tk
+from dataclasses import dataclass
 from tkinter import messagebox, ttk
 
 from .docx_export import (
@@ -20,76 +22,89 @@ from .resources import priecinok_udajov
 from .volba import VysledokKola, vyhodnot_kolo
 
 
-class KoloPanel(ttk.Frame):
-    """1. a 2. kolo voľby kandidáta na dekana."""
+@dataclass
+class VolbaStav:
+    """Zdieľaný stav medzi oknami 1. a 2. kola voľby."""
 
-    def __init__(self, parent: tk.Misc, z: Zhromazdenie) -> None:
+    v1: VysledokKola | None = None
+    v2: VysledokKola | None = None
+    listky_k1: bool = False
+    listky_k2: bool = False
+
+
+class KoloPanel(ttk.Frame):
+    """Jedno kolo voľby kandidáta na dekana (1. alebo 2.)."""
+
+    def __init__(
+        self, parent: tk.Misc, z: Zhromazdenie, kolo: int, stav: VolbaStav
+    ) -> None:
         super().__init__(parent)
         self.z = z
-        self._var_hlasy_k1: dict[str, tk.StringVar] = {}
-        self._var_hlasy_k2: dict[str, tk.StringVar] = {}
-        self._var_neplatne_k1 = tk.StringVar()
-        self._var_neplatne_k2 = tk.StringVar()
-        self._v1: VysledokKola | None = None
-        self._v2: VysledokKola | None = None
+        self.kolo = kolo
+        self.stav = stav
+        self._var_hlasy: dict[str, tk.StringVar] = {}
+        self._var_neplatne = tk.StringVar()
+        self._entry_hlasy: dict[str, ttk.Entry] = {}
         self._vytvor_widgety()
         self.obnov()
 
+    @property
+    def _atribut(self) -> str:
+        return "hlasy_k1" if self.kolo == 1 else "hlasy_k2"
+
+    def _set_listky(self, hodnota: bool) -> None:
+        if self.kolo == 1:
+            self.stav.listky_k1 = hodnota
+        else:
+            self.stav.listky_k2 = hodnota
+
+    def _listky_hotove(self) -> bool:
+        return self.stav.listky_k1 if self.kolo == 1 else self.stav.listky_k2
+
     # ------------------------------------------------------------------ build
     def _vytvor_widgety(self) -> None:
-        # --- 1. kolo ---
-        self.ramec_k1 = ttk.LabelFrame(self, text="1. kolo voľby", padding=10)
-        self.ramec_k1.pack(fill="x", pady=(0, 6))
-        ttk.Button(
-            self.ramec_k1,
-            text="Generovať hlasovacie lístky (1. kolo)…",
-            command=self._generuj_listky_k1,
-        ).pack(anchor="w", pady=(0, 6))
-        self.box_hlasy_k1 = ttk.Frame(self.ramec_k1)
-        self.box_hlasy_k1.pack(fill="x")
-        spod_k1 = ttk.Frame(self.ramec_k1)
-        spod_k1.pack(fill="x", pady=(6, 0))
-        ttk.Label(spod_k1, text="Počet neplatných hlasov:").pack(side="left")
-        ttk.Entry(spod_k1, textvariable=self._var_neplatne_k1, width=6).pack(
-            side="left", padx=(4, 16)
+        ramec = ttk.LabelFrame(
+            self, text=f"{self.kolo}. kolo voľby", padding=10
         )
-        ttk.Button(
-            spod_k1, text="Vyhodnotiť 1. kolo", command=self._vyhodnot_k1
-        ).pack(side="left")
-        self.lbl_vysledok_k1 = tk.Label(
-            self.ramec_k1, text="", justify="left", anchor="w", wraplength=860
-        )
-        self.lbl_vysledok_k1.pack(fill="x", pady=(6, 0))
+        ramec.pack(fill="x")
 
-        # --- 2. kolo ---
-        self.ramec_k2 = ttk.LabelFrame(self, text="2. kolo voľby", padding=10)
-        self.ramec_k2.pack(fill="x", pady=(6, 6))
-        self.btn_listky_k2 = ttk.Button(
-            self.ramec_k2,
-            text="Generovať hlasovacie lístky (2. kolo)…",
-            command=self._generuj_listky_k2,
+        self.btn_listky = ttk.Button(
+            ramec,
+            text=f"Generovať hlasovacie lístky ({self.kolo}. kolo)…",
+            command=self._generuj_listky,
         )
-        self.btn_listky_k2.pack(anchor="w", pady=(0, 6))
-        self.box_hlasy_k2 = ttk.Frame(self.ramec_k2)
-        self.box_hlasy_k2.pack(fill="x")
-        spod_k2 = ttk.Frame(self.ramec_k2)
-        spod_k2.pack(fill="x", pady=(6, 0))
-        ttk.Label(spod_k2, text="Počet neplatných hlasov:").pack(side="left")
-        ttk.Entry(spod_k2, textvariable=self._var_neplatne_k2, width=6).pack(
-            side="left", padx=(4, 16)
-        )
-        self.btn_vyhodnot_k2 = ttk.Button(
-            spod_k2, text="Vyhodnotiť 2. kolo", command=self._vyhodnot_k2
-        )
-        self.btn_vyhodnot_k2.pack(side="left")
-        self.lbl_vysledok_k2 = tk.Label(
-            self.ramec_k2, text="", justify="left", anchor="w", wraplength=860
-        )
-        self.lbl_vysledok_k2.pack(fill="x", pady=(6, 0))
+        self.btn_listky.pack(anchor="w", pady=(0, 6))
 
-        # --- Zápisnica ---
+        self.lbl_pokyn = tk.Label(
+            ramec,
+            text="",
+            justify="left",
+            anchor="w",
+            fg="#b00020",
+            wraplength=860,
+        )
+        self.lbl_pokyn.pack(fill="x", pady=(0, 6))
+
+        self.box_hlasy = ttk.Frame(ramec)
+        self.box_hlasy.pack(fill="x")
+
+        spod = ttk.Frame(ramec)
+        spod.pack(fill="x", pady=(6, 0))
+        ttk.Label(spod, text="Počet neplatných hlasov:").pack(side="left")
+        self.ent_neplatne = ttk.Entry(spod, textvariable=self._var_neplatne, width=6)
+        self.ent_neplatne.pack(side="left", padx=(4, 16))
+        self.btn_vyhodnot = ttk.Button(
+            spod, text=f"Vyhodnotiť {self.kolo}. kolo", command=self._vyhodnot
+        )
+        self.btn_vyhodnot.pack(side="left")
+
+        self.lbl_vysledok = tk.Label(
+            ramec, text="", justify="left", anchor="w", wraplength=860
+        )
+        self.lbl_vysledok.pack(fill="x", pady=(6, 0))
+
         ramec_z = ttk.Frame(self)
-        ramec_z.pack(fill="x", pady=(6, 0))
+        ramec_z.pack(fill="x", pady=(10, 0))
         ttk.Button(
             ramec_z,
             text="Generovať zápisnicu z volebného zhromaždenia…",
@@ -97,51 +112,85 @@ class KoloPanel(ttk.Frame):
         ).pack(anchor="w")
 
     # ------------------------------------------------------------- napĺňanie
-    def _riadky_hlasov(
-        self, box: tk.Misc, kandidati: list[Kandidat],
-        vars_map: dict[str, tk.StringVar], atribut: str,
-    ) -> None:
-        for w in box.winfo_children():
-            w.destroy()
-        vars_map.clear()
-        if not kandidati:
-            ttk.Label(box, text="(žiadni kandidáti)").grid(row=0, column=0, sticky="w")
-            return
-        for i, k in enumerate(kandidati):
-            ttk.Label(box, text=k.cele_meno).grid(
-                row=i, column=0, sticky="w", padx=(0, 8), pady=2
-            )
-            var = tk.StringVar(value=str(getattr(k, atribut)))
-            vars_map[k.id] = var
-            ttk.Entry(box, textvariable=var, width=6).grid(
-                row=i, column=1, sticky="w", pady=2
-            )
-            ttk.Label(box, text="hlasov").grid(row=i, column=2, sticky="w")
-
-    def obnov(self) -> None:
-        kandidati = self.z.kandidati_zoradeni()
-        self._riadky_hlasov(self.box_hlasy_k1, kandidati, self._var_hlasy_k1, "hlasy_k1")
-        self._var_neplatne_k1.set(str(self.z.neplatne_k1))
-        self._var_neplatne_k2.set(str(self.z.neplatne_k2))
-        # 2. kolo sa sprístupní až po vyhodnotení 1. kola bez zvoleného kandidáta.
-        postupujuci = self._postupujuci()
-        self._riadky_hlasov(
-            self.box_hlasy_k2, postupujuci, self._var_hlasy_k2, "hlasy_k2"
-        )
-        self._nastav_stav_k2(bool(postupujuci))
+    def _kandidati(self) -> list[Kandidat]:
+        if self.kolo == 1:
+            return self.z.kandidati_zoradeni()
+        return self._postupujuci()
 
     def _postupujuci(self) -> list[Kandidat]:
-        if self._v1 is None or self._v1.zvoleny is not None:
+        v1 = self.stav.v1
+        if v1 is None or v1.zvoleny is not None:
             return []
         return sorted(
-            self._v1.postupujuci,
+            v1.postupujuci,
             key=lambda k: (k.priezvisko.lower(), k.meno.lower()),
         )
 
-    def _nastav_stav_k2(self, aktivne: bool) -> None:
-        stav = "normal" if aktivne else "disabled"
-        self.btn_listky_k2.config(state=stav)
-        self.btn_vyhodnot_k2.config(state=stav)
+    def _riadky_hlasov(self, kandidati: list[Kandidat]) -> None:
+        for w in self.box_hlasy.winfo_children():
+            w.destroy()
+        self._var_hlasy.clear()
+        self._entry_hlasy.clear()
+        if not kandidati:
+            ttk.Label(self.box_hlasy, text="(žiadni kandidáti)").grid(
+                row=0, column=0, sticky="w"
+            )
+            return
+        for i, k in enumerate(kandidati):
+            ttk.Label(self.box_hlasy, text=k.cele_meno).grid(
+                row=i, column=0, sticky="w", padx=(0, 8), pady=2
+            )
+            var = tk.StringVar(value=str(getattr(k, self._atribut)))
+            self._var_hlasy[k.id] = var
+            ent = ttk.Entry(self.box_hlasy, textvariable=var, width=6)
+            ent.grid(row=i, column=1, sticky="w", pady=2)
+            self._entry_hlasy[k.id] = ent
+            ttk.Label(self.box_hlasy, text="hlasov").grid(
+                row=i, column=2, sticky="w"
+            )
+
+    def obnov(self) -> None:
+        kandidati = self._kandidati()
+        self._riadky_hlasov(kandidati)
+        self._var_neplatne.set(
+            str(self.z.neplatne_k1 if self.kolo == 1 else self.z.neplatne_k2)
+        )
+        v = self.stav.v1 if self.kolo == 1 else self.stav.v2
+        if v is not None:
+            self.lbl_vysledok.config(
+                text=self._text_vysledku(v, self.kolo), fg=self._farba(v)
+            )
+        else:
+            self.lbl_vysledok.config(text="")
+        self._aktualizuj_stav()
+
+    def _aktualizuj_stav(self) -> None:
+        """Sprístupní/zablokuje generovanie lístkov a zadávanie hlasov."""
+        kandidati = self._kandidati()
+        # Generovanie lístkov.
+        if self.kolo == 2 and not kandidati:
+            self.btn_listky.config(state="disabled")
+            self.lbl_pokyn.config(
+                text="2. kolo sa sprístupní po vyhodnotení 1. kola, "
+                "ak nikto nezíska potrebnú väčšinu."
+            )
+        else:
+            self.btn_listky.config(state="normal")
+
+        # Zadávanie hlasov – až po vygenerovaní hlasovacích lístkov.
+        zadavanie = self._listky_hotove() and bool(kandidati)
+        stav = "normal" if zadavanie else "disabled"
+        for ent in self._entry_hlasy.values():
+            ent.config(state=stav)
+        self.ent_neplatne.config(state=stav)
+        self.btn_vyhodnot.config(state=stav)
+        if kandidati and not self._listky_hotove():
+            self.lbl_pokyn.config(
+                text="Najprv vygenerujte hlasovacie lístky – až potom je "
+                "možné zadávať výsledky volieb."
+            )
+        elif kandidati:
+            self.lbl_pokyn.config(text="")
 
     # ----------------------------------------------------------- zber hlasov
     @staticmethod
@@ -169,74 +218,70 @@ class KoloPanel(ttk.Frame):
             return False
         return True
 
-    def _zber_k1(self) -> None:
-        for k in self.z.kandidati:
-            if k.id in self._var_hlasy_k1:
-                k.hlasy_k1 = self._cislo(self._var_hlasy_k1[k.id])
-        self.z.neplatne_k1 = self._cislo(self._var_neplatne_k1)
-
-    def _zber_k2(self) -> None:
-        for k in self.z.kandidati:
-            if k.id in self._var_hlasy_k2:
-                k.hlasy_k2 = self._cislo(self._var_hlasy_k2[k.id])
-        self.z.neplatne_k2 = self._cislo(self._var_neplatne_k2)
+    def _zber(self, kandidati: list[Kandidat]) -> None:
+        for k in kandidati:
+            if k.id in self._var_hlasy:
+                setattr(k, self._atribut, self._cislo(self._var_hlasy[k.id]))
+        if self.kolo == 1:
+            self.z.neplatne_k1 = self._cislo(self._var_neplatne)
+        else:
+            self.z.neplatne_k2 = self._cislo(self._var_neplatne)
 
     # --------------------------------------------------------------- akcie
-    def _generuj_listky_k1(self) -> None:
-        self._generuj_listky(1, self.z.kandidati_zoradeni())
-
-    def _generuj_listky_k2(self) -> None:
-        self._generuj_listky(2, self._postupujuci())
-
-    def _generuj_listky(self, kolo: int, kandidati: list[Kandidat]) -> None:
+    def _generuj_listky(self) -> None:
+        kandidati = self._kandidati()
         if not kandidati:
             messagebox.showinfo(
                 "Hlasovacie lístky",
-                "Najprv pridajte kandidátov (krok 3).",
+                "Najprv pridajte kandidátov (krok 3)."
+                if self.kolo == 1
+                else "2. kolo je dostupné až po vyhodnotení 1. kola "
+                "bez zvoleného kandidáta.",
                 parent=self,
             )
             return
         cesta = os.path.join(
-            priecinok_udajov(), f"Hlasovací lístok - {kolo}. kolo.docx"
+            priecinok_udajov(), f"Hlasovací lístok - {self.kolo}. kolo.docx"
         )
         try:
-            uloz_hlasovaci_listok(self.z, kolo, kandidati, cesta)
+            uloz_hlasovaci_listok(self.z, self.kolo, kandidati, cesta)
         except OSError as e:
             messagebox.showerror(
                 "Hlasovacie lístky", f"Uloženie zlyhalo:\n{e}", parent=self
             )
             return
+        self._set_listky(True)
+        self._aktualizuj_stav()
         self._otvor_subor(cesta, "Hlasovacie lístky")
 
-    def _vyhodnot_k1(self) -> None:
-        if not self.z.kandidati:
+    def _vyhodnot(self) -> None:
+        kandidati = self._kandidati()
+        if not kandidati:
+            return
+        if not self._listky_hotove():
             messagebox.showinfo(
-                "1. kolo", "Najprv pridajte kandidátov (krok 3).", parent=self
+                f"{self.kolo}. kolo",
+                "Najprv vygenerujte hlasovacie lístky.",
+                parent=self,
             )
             return
-        self._zber_k1()
-        odovzdane = sum(k.hlasy_k1 for k in self.z.kandidati) + self.z.neplatne_k1
+        self._zber(kandidati)
+        odovzdane = sum(getattr(k, self._atribut) for k in kandidati) + (
+            self.z.neplatne_k1 if self.kolo == 1 else self.z.neplatne_k2
+        )
         if not self._kontrola_poctu(odovzdane):
             return
-        self._v1 = vyhodnot_kolo(self.z.kandidati_zoradeni(), 1, self.z.celkovy_pocet)
-        self._v2 = None
-        self.lbl_vysledok_k1.config(
-            text=self._text_vysledku(self._v1, 1), fg=self._farba(self._v1)
+        v = vyhodnot_kolo(kandidati, self.kolo, self.z.celkovy_pocet)
+        if self.kolo == 1:
+            self.stav.v1 = v
+            self.stav.v2 = None
+            self.stav.listky_k2 = False
+        else:
+            self.stav.v2 = v
+        self.lbl_vysledok.config(
+            text=self._text_vysledku(v, self.kolo), fg=self._farba(v)
         )
-        self.obnov()
-
-    def _vyhodnot_k2(self) -> None:
-        postupujuci = self._postupujuci()
-        if not postupujuci:
-            return
-        self._zber_k2()
-        odovzdane = sum(k.hlasy_k2 for k in postupujuci) + self.z.neplatne_k2
-        if not self._kontrola_poctu(odovzdane):
-            return
-        self._v2 = vyhodnot_kolo(postupujuci, 2, self.z.celkovy_pocet)
-        self.lbl_vysledok_k2.config(
-            text=self._text_vysledku(self._v2, 2), fg=self._farba(self._v2)
-        )
+        self._aktualizuj_stav()
 
     def _generuj_zapisnicu(self) -> None:
         if not self.z.kandidati:
@@ -244,8 +289,6 @@ class KoloPanel(ttk.Frame):
                 "Zápisnica", "Najprv pridajte kandidátov (krok 3).", parent=self
             )
             return
-        self._zber_k1()
-        self._zber_k2()
         cesta = os.path.join(
             priecinok_udajov(), "Zápisnica z volebného zhromaždenia.docx"
         )

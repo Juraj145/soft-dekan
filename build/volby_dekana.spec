@@ -23,7 +23,12 @@ datas += [
     (os.path.join(_ASSETS, "hlasovaci_listok_template.docx"), "volby_dekana/assets"),
     (os.path.join(_ASSETS, "zapisnica_template.docx"), "volby_dekana/assets"),
 ]
-hiddenimports = ["docx"] + collect_submodules("volby_dekana")
+hiddenimports = [
+    "docx",
+    "PIL",
+    "PIL.Image",
+    "PIL.ImageTk",
+] + collect_submodules("volby_dekana")
 
 a = Analysis(
     [os.path.join(_REPO, "main.py")],
