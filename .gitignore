@@ -1,0 +1,12 @@
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+build/*.toc
+build/*/
+dist/
+*.spec.bak
+*.egg-info/
+.pytest_cache/
+*.docx
+!tests/**/*.docx
