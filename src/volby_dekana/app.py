@@ -121,6 +121,8 @@ class App(tk.Tk):
         self.volba_stav = VolbaStav()
         self.panel_kolo1 = KoloPanel(self.kontajner, self.z, 1, self.volba_stav)
         self.panel_kolo2 = KoloPanel(self.kontajner, self.z, 2, self.volba_stav)
+        self.panel_kolo1.on_zmena = self._aktualizuj_nav
+        self.panel_kolo2.on_zmena = self._aktualizuj_nav
         self._stranky = [
             ("Krok 1 z 5 – Prezenčná listina", self.stranka_listina),
             ("Krok 2 z 5 – Volebná komisia", self.panel_komisia),
@@ -351,6 +353,11 @@ class App(tk.Tk):
         self.btn_spat.config(state="normal" if self._index > 0 else "disabled")
         posledny = self._index >= len(self._stranky) - 1
         chyby = self._chybajuce_udaje(self._index)
+        _, panel = self._stranky[self._index]
+        v1 = self.volba_stav.v1
+        kolo1_uspesne = (
+            panel is self.panel_kolo1 and v1 is not None and v1.zvoleny is not None
+        )
         if posledny:
             self.btn_dalej.config(state="disabled")
             self.lbl_nav_info.config(text="")
@@ -358,6 +365,12 @@ class App(tk.Tk):
             self.btn_dalej.config(state="disabled")
             self.lbl_nav_info.config(
                 text="Pre pokračovanie doplňte: " + ", ".join(chyby) + "."
+            )
+        elif kolo1_uspesne:
+            self.btn_dalej.config(state="disabled")
+            self.lbl_nav_info.config(
+                text="1. kolo bolo úspešné – kandidát bol zvolený, "
+                "2. kolo nie je potrebné."
             )
         else:
             self.btn_dalej.config(state="normal")

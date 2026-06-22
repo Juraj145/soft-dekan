@@ -10,6 +10,7 @@ from __future__ import annotations
 import os
 import sys
 import tkinter as tk
+from collections.abc import Callable
 from dataclasses import dataclass
 from tkinter import messagebox, ttk
 
@@ -51,6 +52,7 @@ class KoloPanel(ttk.Frame):
         self._var_hlasy: dict[str, tk.StringVar] = {}
         self._var_neplatne = tk.StringVar()
         self._var_platne = tk.StringVar(value="0")
+        self.on_zmena: Callable[[], None] | None = None
         self._entry_hlasy: dict[str, ttk.Entry] = {}
         self._vytvor_widgety()
         self.obnov()
@@ -150,11 +152,17 @@ class KoloPanel(ttk.Frame):
 
         ramec_z = ttk.Frame(self)
         ramec_z.pack(fill="x", pady=(10, 0))
-        ttk.Button(
+        self.btn_zapisnica = ttk.Button(
             ramec_z,
             text="Generovať zápisnicu z volebného zhromaždenia…",
             command=self._generuj_zapisnicu,
-        ).pack(anchor="w")
+        )
+        self.btn_zapisnica.pack(anchor="w")
+        self.lbl_zapisnica = tk.Label(
+            ramec_z, text="", justify="left", anchor="w", fg="#666666",
+            wraplength=860,
+        )
+        self.lbl_zapisnica.pack(fill="x")
 
     # ------------------------------------------------------------- napĺňanie
     def _kandidati(self) -> list[Kandidat]:
@@ -261,6 +269,27 @@ class KoloPanel(ttk.Frame):
             ent.config(state=stav)
         self.ent_neplatne.config(state=stav)
         self.btn_vyhodnot.config(state=stav)
+        self._aktualizuj_zapisnicu()
+
+    def _aktualizuj_zapisnicu(self) -> None:
+        """Zápisnicu možno generovať až po vyhodnotení kola.
+
+        V 1. kole len ak bol kandidát zvolený (neúspešné kolo → pokračuje 2. kolom),
+        v 2. kole po jeho vyhodnotení.
+        """
+        if self.kolo == 1:
+            v1 = self.stav.v1
+            mozne = v1 is not None and v1.zvoleny is not None
+            if v1 is not None and v1.zvoleny is None:
+                pokyn = ("1. kolo bolo neúspešné – zápisnica sa vygeneruje až "
+                         "po vyhodnotení 2. kola.")
+            else:
+                pokyn = ""
+        else:
+            mozne = self.stav.v2 is not None
+            pokyn = "" if mozne else "Zápisnicu možno generovať až po vyhodnotení 2. kola."
+        self.btn_zapisnica.config(state="normal" if mozne else "disabled")
+        self.lbl_zapisnica.config(text=pokyn)
 
     # ----------------------------------------------------------- zber hlasov
     @staticmethod
@@ -396,6 +425,8 @@ class KoloPanel(ttk.Frame):
             text=self._text_vysledku(v, self.kolo), fg=self._farba(v)
         )
         self._aktualizuj_stav()
+        if self.on_zmena is not None:
+            self.on_zmena()
 
     def _generuj_zapisnicu(self) -> None:
         if not self.z.kandidati:

@@ -199,15 +199,13 @@ def uloz_hlasovaci_listok(
 def _vypln_prebratie(z: Zhromazdenie, kolo: int, predloha: str) -> Document:
     """Vyplní formulár prebratia/protokolu menami členov (podľa kroku 1)."""
     doc = Document(cesta_k_asetu(predloha))
-    miesto = ", ".join(r.strip() for r in z.miesto_riadky if r.strip())
     for p in doc.paragraphs:
         t = p.text.strip()
-        if t.startswith("Miesto konania"):
-            _nastav_za_tabulatorom(p, miesto)
-        elif t.startswith("Dátum"):
+        if t.startswith("Dátum"):
             _nastav_za_tabulatorom(p, z.datum)
         elif t.startswith("Kolo voľby"):
             _nastav_za_tabulatorom(p, f"{kolo}. kolo")
+    _miesto_riadkovo(doc, z)
     mena = [c.cele_meno for c in z.clenovia_zoradeni()]
     pocet = max(z.celkovy_pocet, len(mena))
     _vypln_tabulku(
@@ -366,17 +364,12 @@ def vytvor_zapisnicu(z: Zhromazdenie) -> Document:
     return doc
 
 
-def _vypln_miesto_zapisnica(doc: Document, z: Zhromazdenie) -> None:
+def _miesto_riadkovo(doc: Document, z: Zhromazdenie) -> None:
     """Adresu miesta konania zarovná k pravému okraju.
 
     Prvý riadok adresy je na rovnakom riadku ako popis „Miesto konania:"
     (cez pravý tabulátor predlohy), ďalšie riadky pod ním sú zarovnané vpravo.
-    Odstráni aj nepoužitý riadok „Čas vyhotovenia zápisnice".
     """
-    for p in list(doc.paragraphs):
-        if p.text.strip().startswith("Čas vyhotovenia zápisnice"):
-            _odstran_odsek(p)
-
     odseky = doc.paragraphs
     i = next(
         (i for i, p in enumerate(odseky)
@@ -395,6 +388,14 @@ def _vypln_miesto_zapisnica(doc: Document, z: Zhromazdenie) -> None:
         _nastav_odsek_text(novy, hodnota)
         novy.alignment = WD_ALIGN_PARAGRAPH.RIGHT
         posledny = novy
+
+
+def _vypln_miesto_zapisnica(doc: Document, z: Zhromazdenie) -> None:
+    """Odstráni „Čas vyhotovenia zápisnice" a vyplní miesto konania po riadkoch."""
+    for p in list(doc.paragraphs):
+        if p.text.strip().startswith("Čas vyhotovenia zápisnice"):
+            _odstran_odsek(p)
+    _miesto_riadkovo(doc, z)
 
 
 def _vypln_zavery(doc: Document, v1: VysledokKola, v2: VysledokKola | None) -> None:
