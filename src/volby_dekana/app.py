@@ -37,6 +37,7 @@ class App(tk.Tk):
         self._vytvor_widgety()
         self._obnov_zoznam()
         self._prepocitaj()
+        self._vytvor_uvod()
 
     # ---------------------------------------------------------------- UI build
     def _nastav_ikonu(self) -> None:
@@ -118,6 +119,34 @@ class App(tk.Tk):
             ("Krok 3 z 3 – Kandidáti na dekana TF", self.panel_kandidati),
         ]
         self._zobraz_stranku()
+
+    def _vytvor_uvod(self) -> None:
+        """Úvodná titulná obrazovka zobrazená pred sprievodcom."""
+        self.uvod = tk.Frame(self, bg="white")
+        self.uvod.place(relx=0, rely=0, relwidth=1, relheight=1)
+        stred = tk.Frame(self.uvod, bg="white")
+        stred.place(relx=0.5, rely=0.5, anchor="center")
+        self._uvod_img = None
+        try:
+            self._uvod_img = tk.PhotoImage(file=cesta_k_asetu("uvod.png"))
+            tk.Label(
+                stred, image=self._uvod_img, bg="white", bd=1, relief="solid"
+            ).pack()
+        except Exception:
+            tk.Label(
+                stred,
+                text="Voľba dekana Technickej fakulty\nSPU v Nitre 2026 – 2030",
+                font=("TkDefaultFont", 18, "bold"),
+                bg="white",
+                justify="center",
+            ).pack(pady=60)
+        ttk.Button(
+            stred, text="Pokračovať ▶", command=self._zavri_uvod
+        ).pack(pady=16)
+
+    def _zavri_uvod(self) -> None:
+        if hasattr(self, "uvod") and self.uvod.winfo_exists():
+            self.uvod.destroy()
 
     def _vytvor_stranku_listina(self, kontajner: tk.Misc) -> ttk.Frame:
         root = ttk.Frame(kontajner)
