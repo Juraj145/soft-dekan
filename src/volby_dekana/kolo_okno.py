@@ -15,7 +15,7 @@ from .docx_export import (
     uloz_hlasovaci_listok,
     uloz_zapisnicu,
 )
-from .models import Kandidat, Zhromazdenie
+from .models import Kandidat, Stav, Zhromazdenie
 from .resources import priecinok_udajov
 from .volba import VysledokKola, vyhodnot_kolo
 
@@ -151,6 +151,24 @@ class KoloPanel(ttk.Frame):
         except ValueError:
             return 0
 
+    def _pocet_hlasujucich(self) -> int:
+        """Počet hlasujúcich (prítomných) členov volebného zhromaždenia."""
+        return sum(1 for c in self.z.clenovia if c.stav == Stav.PRITOMNY)
+
+    def _kontrola_poctu(self, odovzdane: int) -> bool:
+        """Overí, že počet odovzdaných hlasov neprekročí počet hlasujúcich."""
+        hlasujuci = self._pocet_hlasujucich()
+        if odovzdane > hlasujuci:
+            messagebox.showerror(
+                "Príliš veľa hlasov",
+                "Počet odovzdaných hlasov "
+                f"({odovzdane}) nemôže byť vyšší ako počet hlasujúcich "
+                f"(prítomných) členov volebného zhromaždenia ({hlasujuci}).",
+                parent=self,
+            )
+            return False
+        return True
+
     def _zber_k1(self) -> None:
         for k in self.z.kandidati:
             if k.id in self._var_hlasy_k1:
@@ -197,6 +215,9 @@ class KoloPanel(ttk.Frame):
             )
             return
         self._zber_k1()
+        odovzdane = sum(k.hlasy_k1 for k in self.z.kandidati) + self.z.neplatne_k1
+        if not self._kontrola_poctu(odovzdane):
+            return
         self._v1 = vyhodnot_kolo(self.z.kandidati_zoradeni(), 1, self.z.celkovy_pocet)
         self._v2 = None
         self.lbl_vysledok_k1.config(
@@ -209,6 +230,9 @@ class KoloPanel(ttk.Frame):
         if not postupujuci:
             return
         self._zber_k2()
+        odovzdane = sum(k.hlasy_k2 for k in postupujuci) + self.z.neplatne_k2
+        if not self._kontrola_poctu(odovzdane):
+            return
         self._v2 = vyhodnot_kolo(postupujuci, 2, self.z.celkovy_pocet)
         self.lbl_vysledok_k2.config(
             text=self._text_vysledku(self._v2, 2), fg=self._farba(self._v2)
