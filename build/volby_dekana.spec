@@ -19,6 +19,7 @@ datas += [
     (os.path.join(_ASSETS, "logo.ico"), "volby_dekana/assets"),
     (os.path.join(_ASSETS, "uvod.png"), "volby_dekana/assets"),
     (os.path.join(_ASSETS, "prezencna_template.docx"), "volby_dekana/assets"),
+    (os.path.join(_ASSETS, "pokyny_template.docx"), "volby_dekana/assets"),
 ]
 hiddenimports = ["docx"] + collect_submodules("volby_dekana")
 

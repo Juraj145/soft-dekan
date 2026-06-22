@@ -9,13 +9,18 @@ import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
 from .dialogs import KandidatDialog
+from .docx_export import uloz_pokyny_hlasovanie
 from .models import (
     TYPY_DOKUMENTOV_KANDIDATA,
     Kandidat,
     Material,
     Zhromazdenie,
 )
-from .resources import NAZOV_PRIECINKA_KANDIDATI, priecinok_kandidatov
+from .resources import (
+    NAZOV_PRIECINKA_KANDIDATI,
+    priecinok_kandidatov,
+    priecinok_udajov,
+)
 
 
 class KandidatiPanel(ttk.Frame):
@@ -51,6 +56,11 @@ class KandidatiPanel(ttk.Frame):
         ttk.Button(
             panel, text="Načítať kandidátov…", command=self._nacitaj_kandidatov
         ).pack(side="left", padx=2)
+        ttk.Button(
+            panel,
+            text="Generovať pokyny k hlasovaniu…",
+            command=self._generuj_pokyny,
+        ).pack(side="left", padx=(16, 2))
 
         stlpce = ("priezvisko", "meno", "titul", "navrhy", "dokumenty")
         self.tree_k = ttk.Treeview(
@@ -269,6 +279,37 @@ class KandidatiPanel(ttk.Frame):
         self._obnov_dokumenty()
 
     # ------------------------------------------------------- ukladanie/načítanie
+    def _generuj_pokyny(self) -> None:
+        if not self.z.kandidati:
+            messagebox.showinfo(
+                "Pokyny k hlasovaniu",
+                "Najprv pridajte aspoň jedného kandidáta (krok 3).",
+                parent=self,
+            )
+            return
+        cesta = filedialog.asksaveasfilename(
+            parent=self,
+            title="Generovať pokyny k vyplňovaniu hlasovacieho lístka",
+            defaultextension=".docx",
+            initialdir=priecinok_udajov(),
+            initialfile="Pokyny k vyplňovaniu hlasovacieho lístka.docx",
+            filetypes=[("Dokument Word", "*.docx")],
+        )
+        if not cesta:
+            return
+        try:
+            uloz_pokyny_hlasovanie(cesta)
+        except OSError as e:
+            messagebox.showerror(
+                "Pokyny k hlasovaniu", f"Uloženie zlyhalo:\n{e}", parent=self
+            )
+            return
+        messagebox.showinfo(
+            "Pokyny k hlasovaniu",
+            f"Pokyny boli uložené:\n{cesta}",
+            parent=self,
+        )
+
     def _uloz_kandidatov(self) -> None:
         if not self.z.kandidati:
             messagebox.showinfo(

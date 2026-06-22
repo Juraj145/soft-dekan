@@ -135,3 +135,9 @@ def vytvor_prezencnu_listinu(z: Zhromazdenie) -> Document:
 
 def uloz_prezencnu_listinu(z: Zhromazdenie, cesta: str) -> None:
     vytvor_prezencnu_listinu(z).save(cesta)
+
+
+def uloz_pokyny_hlasovanie(cesta: str) -> None:
+    """Uloží pokyny k vyplňovaniu hlasovacieho lístka z referenčnej predlohy."""
+    doc = Document(cesta_k_asetu("pokyny_template.docx"))
+    doc.save(cesta)
