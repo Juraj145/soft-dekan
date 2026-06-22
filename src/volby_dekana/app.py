@@ -11,7 +11,8 @@ from tkinter import filedialog, messagebox, ttk
 from . import __version__
 from .dialogs import ClenDialog
 from .docx_export import uloz_prezencnu_listinu
-from .models import POCET_RIADKOV_MIESTA, Zhromazdenie
+from .komisia_okno import KomisiaOkno
+from .models import POCET_KOMISIA, POCET_RIADKOV_MIESTA, Zhromazdenie
 from .quorum import vyhodnot_kvorum
 from .resources import cesta_k_asetu, priecinok_udajov
 from . import updater
@@ -28,6 +29,7 @@ class App(tk.Tk):
 
         self.z = Zhromazdenie()
         self._aktualna_cesta: str | None = None
+        self._komisia_okno: KomisiaOkno | None = None
 
         self._nastav_ikonu()
         self._vytvor_menu()
@@ -138,10 +140,16 @@ class App(tk.Tk):
             side="left", padx=2
         )
         ttk.Button(
+            panel_tlac, text="Pridať/odobrať z komisie", command=self._prepni_komisiu
+        ).pack(side="left", padx=2)
+        ttk.Button(
             panel_tlac, text="Nastaviť ako predsedu komisie", command=self._nastav_predsedu
         ).pack(side="left", padx=2)
+        ttk.Button(
+            panel_tlac, text="Volebná komisia…", command=self._otvor_komisiu
+        ).pack(side="left", padx=2)
 
-        stlpce = ("priezvisko", "meno", "titul", "skupina", "stav", "predseda")
+        stlpce = ("priezvisko", "meno", "titul", "skupina", "stav", "komisia", "predseda")
         self.tree = ttk.Treeview(
             ramec_zoznam, columns=stlpce, show="headings", selectmode="browse"
         )
@@ -151,19 +159,22 @@ class App(tk.Tk):
             "titul": "Titul(y)",
             "skupina": "Skupina",
             "stav": "Stav",
+            "komisia": "Komisia",
             "predseda": "Predseda komisie",
         }
         sirky = {
             "priezvisko": 140,
             "meno": 120,
             "titul": 110,
-            "skupina": 220,
-            "stav": 110,
+            "skupina": 210,
+            "stav": 100,
+            "komisia": 80,
             "predseda": 120,
         }
         for s in stlpce:
             self.tree.heading(s, text=nadpisy[s])
             self.tree.column(s, width=sirky[s], anchor="w")
+        self.tree.column("komisia", anchor="center")
         self.tree.column("predseda", anchor="center")
 
         scroll = ttk.Scrollbar(ramec_zoznam, orient="vertical", command=self.tree.yview)
@@ -202,6 +213,7 @@ class App(tk.Tk):
         self.tree.delete(*self.tree.get_children())
         for c in self.z.clenovia_zoradeni():
             je_predseda = "✓" if c.id == self.z.predseda_komisie_id else ""
+            je_komisia = "✓" if c.id in self.z.komisia_ids else ""
             self.tree.insert(
                 "",
                 "end",
@@ -212,9 +224,13 @@ class App(tk.Tk):
                     c.tituly,
                     c.skupina.value,
                     c.stav.value,
+                    je_komisia,
                     je_predseda,
                 ),
             )
+        if self._komisia_okno is not None and self._komisia_okno.winfo_exists():
+            self._komisia_okno.z = self.z
+            self._komisia_okno.obnov()
 
     def _prepocitaj(self) -> None:
         self._zber_vstupy()
@@ -266,8 +282,33 @@ class App(tk.Tk):
         self.z.clenovia = [c for c in self.z.clenovia if c.id != cid]
         if self.z.predseda_komisie_id == cid:
             self.z.predseda_komisie_id = None
+        if cid in self.z.komisia_ids:
+            self.z.komisia_ids.remove(cid)
         self._obnov_zoznam()
         self._prepocitaj()
+
+    def _prepni_komisiu(self) -> None:
+        cid = self._vybrany_id()
+        if not cid:
+            messagebox.showinfo(
+                "Volebná komisia", "Najprv vyberte člena v zozname.", parent=self
+            )
+            return
+        if cid in self.z.komisia_ids:
+            self.z.komisia_ids.remove(cid)
+            if self.z.predseda_komisie_id == cid:
+                self.z.predseda_komisie_id = None
+        else:
+            if len(self.z.komisia_ids) >= POCET_KOMISIA:
+                messagebox.showinfo(
+                    "Volebná komisia",
+                    f"Volebná komisia má {POCET_KOMISIA} členov. "
+                    "Najprv niekoho odoberte.",
+                    parent=self,
+                )
+                return
+            self.z.komisia_ids.append(cid)
+        self._obnov_zoznam()
 
     def _nastav_predsedu(self) -> None:
         cid = self._vybrany_id()
@@ -276,8 +317,26 @@ class App(tk.Tk):
                 "Predseda komisie", "Najprv vyberte člena v zozname.", parent=self
             )
             return
+        if cid not in self.z.komisia_ids:
+            if len(self.z.komisia_ids) >= POCET_KOMISIA:
+                messagebox.showinfo(
+                    "Volebná komisia",
+                    f"Volebná komisia má {POCET_KOMISIA} členov. "
+                    "Najprv niekoho odoberte.",
+                    parent=self,
+                )
+                return
+            self.z.komisia_ids.append(cid)
         self.z.predseda_komisie_id = cid
         self._obnov_zoznam()
+
+    def _otvor_komisiu(self) -> None:
+        if self._komisia_okno is not None and self._komisia_okno.winfo_exists():
+            self._komisia_okno.obnov()
+            self._komisia_okno.lift()
+            self._komisia_okno.focus_set()
+            return
+        self._komisia_okno = KomisiaOkno(self, self.z)
 
     def _novy(self) -> None:
         if not messagebox.askyesno(

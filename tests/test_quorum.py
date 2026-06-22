@@ -1,5 +1,5 @@
 from volby_dekana.docx_export import vytvor_prezencnu_listinu
-from volby_dekana.models import Clen, Skupina, Stav, Zhromazdenie
+from volby_dekana.models import Clen, Material, Skupina, Stav, Zhromazdenie
 from volby_dekana.quorum import potrebne_kvorum, vyhodnot_kvorum
 
 
@@ -88,3 +88,21 @@ def test_prezencna_listina_z_predlohy():
     hostia = doc.tables[3]
     cisla = [hostia.rows[i].cells[0].text for i in range(1, len(hostia.rows))]
     assert cisla == [f"{i}." for i in range(1, len(hostia.rows))]
+
+
+def test_komisia_a_materialy_serializacia():
+    z = Zhromazdenie(celkovy_pocet=20)
+    z.clenovia = [_clen("Adam"), _clen("Cibula"), _clen("Žiak")]
+    z.komisia_ids = [z.clenovia[0].id, z.clenovia[2].id]
+    z.predseda_komisie_id = z.clenovia[2].id
+    z.materialy_komisie = [Material(nazov="zapisnica.pdf", cesta="/x/zapisnica.pdf")]
+    # Predseda je v komisii a je vrátený ako prvý.
+    komisia = z.komisia()
+    assert komisia[0].id == z.predseda_komisie_id
+    assert {c.id for c in komisia} == set(z.komisia_ids)
+    # Round-trip serializácia.
+    z2 = Zhromazdenie.from_dict(z.to_dict())
+    assert z2.komisia_ids == z.komisia_ids
+    assert z2.predseda_komisie_id == z.predseda_komisie_id
+    assert z2.materialy_komisie[0].nazov == "zapisnica.pdf"
+    assert z2.materialy_komisie[0].cesta == "/x/zapisnica.pdf"

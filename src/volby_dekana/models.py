@@ -71,6 +71,29 @@ class Clen:
 # Počet riadkov adresy miesta konania.
 POCET_RIADKOV_MIESTA = 5
 
+# Počet členov volebnej komisie.
+POCET_KOMISIA = 5
+
+
+@dataclass
+class Material:
+    """Pripojený dokument (zápisnica zo zasadnutia volebnej komisie)."""
+
+    nazov: str
+    cesta: str
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
+
+    def to_dict(self) -> dict:
+        return asdict(self)
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Material":
+        return cls(
+            nazov=d.get("nazov", ""),
+            cesta=d.get("cesta", ""),
+            id=d.get("id", uuid.uuid4().hex),
+        )
+
 
 @dataclass
 class Zhromazdenie:
@@ -84,6 +107,8 @@ class Zhromazdenie:
     obdobie_od: str = ""
     obdobie_do: str = ""
     predseda_komisie_id: str | None = None
+    komisia_ids: list[str] = field(default_factory=list)
+    materialy_komisie: list[Material] = field(default_factory=list)
     clenovia: list[Clen] = field(default_factory=list)
 
     @property
@@ -109,6 +134,18 @@ class Zhromazdenie:
                 return c
         return None
 
+    def komisia(self) -> list[Clen]:
+        """Členovia volebnej komisie (predseda ako prvý, potom podľa priezviska)."""
+        vybrani = [c for c in self.clenovia if c.id in self.komisia_ids]
+        return sorted(
+            vybrani,
+            key=lambda c: (
+                c.id != self.predseda_komisie_id,
+                _key_sk(c.priezvisko),
+                _key_sk(c.meno),
+            ),
+        )
+
     def to_dict(self) -> dict:
         return {
             "celkovy_pocet": self.celkovy_pocet,
@@ -117,6 +154,8 @@ class Zhromazdenie:
             "obdobie_od": self.obdobie_od,
             "obdobie_do": self.obdobie_do,
             "predseda_komisie_id": self.predseda_komisie_id,
+            "komisia_ids": list(self.komisia_ids),
+            "materialy_komisie": [m.to_dict() for m in self.materialy_komisie],
             "clenovia": [c.to_dict() for c in self.clenovia],
         }
 
@@ -129,6 +168,10 @@ class Zhromazdenie:
             obdobie_od=d.get("obdobie_od", ""),
             obdobie_do=d.get("obdobie_do", ""),
             predseda_komisie_id=d.get("predseda_komisie_id"),
+            komisia_ids=[str(i) for i in d.get("komisia_ids", [])],
+            materialy_komisie=[
+                Material.from_dict(m) for m in d.get("materialy_komisie", [])
+            ],
             clenovia=[Clen.from_dict(c) for c in d.get("clenovia", [])],
         )
 

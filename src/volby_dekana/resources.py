@@ -5,6 +5,7 @@ import os
 import sys
 
 NAZOV_PRIECINKA_UDAJE = "Vstupné údaje"
+NAZOV_PRIECINKA_ZAPISNICE = "Zápisnice komisie"
 
 
 def cesta_k_asetu(nazov: str) -> str:
@@ -54,3 +55,13 @@ def priecinok_udajov() -> str:
     except OSError:
         return os.path.expanduser("~")
     return nahradny
+
+
+def priecinok_zapisnic() -> str:
+    """Vráti (a vytvorí) priečinok pre uložené dokumenty volebnej komisie."""
+    cesta = os.path.join(priecinok_udajov(), NAZOV_PRIECINKA_ZAPISNICE)
+    try:
+        os.makedirs(cesta, exist_ok=True)
+    except OSError:
+        return priecinok_udajov()
+    return cesta
