@@ -1,33 +1,22 @@
-"""Okno volebnej komisie a jej zápisníc (pripojené PDF/Word dokumenty)."""
+"""Panel volebnej komisie a jej zápisníc (pripojené PDF/Word dokumenty)."""
 from __future__ import annotations
 
 import os
 import shutil
 import sys
 import tkinter as tk
-from collections.abc import Callable
 from tkinter import filedialog, messagebox, ttk
 
 from .models import Material, Zhromazdenie
 from .resources import priecinok_zapisnic
 
 
-class KomisiaOkno(tk.Toplevel):
+class KomisiaPanel(ttk.Frame):
     """Zobrazí členov volebnej komisie a umožní vkladať zápisnice."""
 
-    def __init__(
-        self,
-        parent: tk.Misc,
-        z: Zhromazdenie,
-        on_kandidati: Callable[[], None] | None = None,
-    ) -> None:
+    def __init__(self, parent: tk.Misc, z: Zhromazdenie) -> None:
         super().__init__(parent)
         self.z = z
-        self._on_kandidati = on_kandidati
-        self.title("Volebná komisia")
-        self.geometry("700x560")
-        self.minsize(560, 460)
-        self.transient(parent)
         self._vytvor_widgety()
         self.obnov()
 
@@ -36,7 +25,7 @@ class KomisiaOkno(tk.Toplevel):
         ramec_cl = ttk.LabelFrame(
             self, text="Členovia volebnej komisie", padding=10
         )
-        ramec_cl.pack(fill="x", padx=10, pady=(10, 6))
+        ramec_cl.pack(fill="x", pady=(0, 6))
         self.tree_cl = ttk.Treeview(
             ramec_cl,
             columns=("clen", "funkcia"),
@@ -50,17 +39,10 @@ class KomisiaOkno(tk.Toplevel):
         self.tree_cl.column("funkcia", width=150, anchor="w")
         self.tree_cl.pack(fill="x")
 
-        if self._on_kandidati is not None:
-            ttk.Button(
-                ramec_cl,
-                text="Kandidáti na dekana…",
-                command=self._on_kandidati,
-            ).pack(anchor="e", pady=(8, 0))
-
         ramec_z = ttk.LabelFrame(
             self, text="Zápisnice zo zasadnutia volebnej komisie", padding=10
         )
-        ramec_z.pack(fill="both", expand=True, padx=10, pady=(6, 10))
+        ramec_z.pack(fill="both", expand=True, pady=(6, 0))
 
         panel = ttk.Frame(ramec_z)
         panel.pack(fill="x", pady=(0, 6))

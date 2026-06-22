@@ -1,4 +1,4 @@
-"""Okno kandidátov na dekana TF s návrhmi a dokumentmi."""
+"""Panel kandidátov na dekana TF s návrhmi a dokumentmi."""
 from __future__ import annotations
 
 import os
@@ -17,16 +17,12 @@ from .models import (
 from .resources import priecinok_kandidatov
 
 
-class KandidatiOkno(tk.Toplevel):
+class KandidatiPanel(ttk.Frame):
     """Pridávanie kandidátov na dekana a ich dokumentov."""
 
     def __init__(self, parent: tk.Misc, z: Zhromazdenie) -> None:
         super().__init__(parent)
         self.z = z
-        self.title("Kandidáti na dekana TF")
-        self.geometry("760x600")
-        self.minsize(640, 520)
-        self.transient(parent)
         self._vytvor_widgety()
         self.obnov()
 
@@ -35,7 +31,7 @@ class KandidatiOkno(tk.Toplevel):
         ramec_k = ttk.LabelFrame(
             self, text="Kandidáti na dekana (abecedne podľa priezviska)", padding=10
         )
-        ramec_k.pack(fill="both", expand=True, padx=10, pady=(10, 6))
+        ramec_k.pack(fill="both", expand=True, pady=(0, 6))
 
         panel = ttk.Frame(ramec_k)
         panel.pack(fill="x", pady=(0, 6))
@@ -82,7 +78,7 @@ class KandidatiOkno(tk.Toplevel):
         ramec_d = ttk.LabelFrame(
             self, text="Dokumenty vybraného kandidáta", padding=10
         )
-        ramec_d.pack(fill="both", expand=True, padx=10, pady=(6, 10))
+        ramec_d.pack(fill="both", expand=True, pady=(6, 0))
 
         panel_d = ttk.Frame(ramec_d)
         panel_d.pack(fill="x", pady=(0, 6))

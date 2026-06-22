@@ -11,8 +11,8 @@ from tkinter import filedialog, messagebox, ttk
 from . import __version__
 from .dialogs import ClenDialog
 from .docx_export import uloz_prezencnu_listinu
-from .kandidati_okno import KandidatiOkno
-from .komisia_okno import KomisiaOkno
+from .kandidati_okno import KandidatiPanel
+from .komisia_okno import KomisiaPanel
 from .models import POCET_KOMISIA, POCET_RIADKOV_MIESTA, Zhromazdenie
 from .quorum import vyhodnot_kvorum
 from .resources import cesta_k_asetu, priecinok_udajov
@@ -30,8 +30,7 @@ class App(tk.Tk):
 
         self.z = Zhromazdenie()
         self._aktualna_cesta: str | None = None
-        self._komisia_okno: KomisiaOkno | None = None
-        self._kandidati_okno: KandidatiOkno | None = None
+        self._index = 0
 
         self._nastav_ikonu()
         self._vytvor_menu()
@@ -90,6 +89,35 @@ class App(tk.Tk):
             hlavicka, text="Aktualizovať program", command=self._aktualizuj_program
         ).pack(side="right")
 
+        # --- Názov aktuálneho kroku ---
+        self.lbl_krok = ttk.Label(root, text="", font=("TkDefaultFont", 12, "bold"))
+        self.lbl_krok.pack(fill="x", pady=(0, 6))
+
+        # --- Navigačné tlačidlá (Späť / Ďalej) ---
+        navlista = ttk.Frame(root)
+        navlista.pack(side="bottom", fill="x", pady=(8, 0))
+        self.btn_spat = ttk.Button(navlista, text="◀ Späť", command=self._spat)
+        self.btn_spat.pack(side="left")
+        self.btn_dalej = ttk.Button(navlista, text="Ďalej ▶", command=self._dalej)
+        self.btn_dalej.pack(side="right")
+
+        # --- Kontajner stránok sprievodcu ---
+        self.kontajner = ttk.Frame(root)
+        self.kontajner.pack(fill="both", expand=True)
+
+        self.stranka_listina = self._vytvor_stranku_listina(self.kontajner)
+        self.panel_komisia = KomisiaPanel(self.kontajner, self.z)
+        self.panel_kandidati = KandidatiPanel(self.kontajner, self.z)
+        self._stranky = [
+            ("Krok 1 z 3 – Prezenčná listina", self.stranka_listina),
+            ("Krok 2 z 3 – Volebná komisia", self.panel_komisia),
+            ("Krok 3 z 3 – Kandidáti na dekana TF", self.panel_kandidati),
+        ]
+        self._zobraz_stranku()
+
+    def _vytvor_stranku_listina(self, kontajner: tk.Misc) -> ttk.Frame:
+        root = ttk.Frame(kontajner)
+
         # --- Vstupné údaje ---
         ramec_vstup = ttk.LabelFrame(root, text="Vstupné údaje", padding=10)
         ramec_vstup.pack(fill="x")
@@ -147,12 +175,6 @@ class App(tk.Tk):
         ttk.Button(
             panel_tlac, text="Nastaviť ako predsedu komisie", command=self._nastav_predsedu
         ).pack(side="left", padx=2)
-        ttk.Button(
-            panel_tlac, text="Volebná komisia…", command=self._otvor_komisiu
-        ).pack(side="left", padx=2)
-        ttk.Button(
-            panel_tlac, text="Kandidáti na dekana…", command=self._otvor_kandidatov
-        ).pack(side="left", padx=2)
 
         stlpce = ("priezvisko", "meno", "titul", "skupina", "stav", "komisia", "predseda")
         self.tree = ttk.Treeview(
@@ -199,6 +221,40 @@ class App(tk.Tk):
         )
         self.lbl_stav.pack(side="right")
 
+        return root
+
+    # ---------------------------------------------------------------- sprievodca
+    def _zobraz_stranku(self) -> None:
+        for _, panel in self._stranky:
+            panel.pack_forget()
+        nazov, panel = self._stranky[self._index]
+        panel.pack(fill="both", expand=True)
+        self.lbl_krok.config(text=nazov)
+        self.btn_spat.config(
+            state="normal" if self._index > 0 else "disabled"
+        )
+        self.btn_dalej.config(
+            state="normal" if self._index < len(self._stranky) - 1 else "disabled"
+        )
+        if panel is self.panel_komisia:
+            self.panel_komisia.z = self.z
+            self.panel_komisia.obnov()
+        elif panel is self.panel_kandidati:
+            self.panel_kandidati.z = self.z
+            self.panel_kandidati.obnov()
+
+    def _dalej(self) -> None:
+        self._zber_vstupy()
+        if self._index < len(self._stranky) - 1:
+            self._index += 1
+            self._zobraz_stranku()
+
+    def _spat(self) -> None:
+        self._zber_vstupy()
+        if self._index > 0:
+            self._index -= 1
+            self._zobraz_stranku()
+
     # ---------------------------------------------------------------- helpers
     def _zber_vstupy(self) -> None:
         self.z.miesto_riadky = [v.get().strip() for v in self.var_miesto_riadky]
@@ -233,15 +289,12 @@ class App(tk.Tk):
                     je_predseda,
                 ),
             )
-        if self._komisia_okno is not None and self._komisia_okno.winfo_exists():
-            self._komisia_okno.z = self.z
-            self._komisia_okno.obnov()
-        if (
-            self._kandidati_okno is not None
-            and self._kandidati_okno.winfo_exists()
-        ):
-            self._kandidati_okno.z = self.z
-            self._kandidati_okno.obnov()
+        if hasattr(self, "panel_komisia"):
+            self.panel_komisia.z = self.z
+            self.panel_komisia.obnov()
+        if hasattr(self, "panel_kandidati"):
+            self.panel_kandidati.z = self.z
+            self.panel_kandidati.obnov()
 
     def _prepocitaj(self) -> None:
         self._zber_vstupy()
@@ -340,27 +393,6 @@ class App(tk.Tk):
             self.z.komisia_ids.append(cid)
         self.z.predseda_komisie_id = cid
         self._obnov_zoznam()
-
-    def _otvor_komisiu(self) -> None:
-        if self._komisia_okno is not None and self._komisia_okno.winfo_exists():
-            self._komisia_okno.obnov()
-            self._komisia_okno.lift()
-            self._komisia_okno.focus_set()
-            return
-        self._komisia_okno = KomisiaOkno(
-            self, self.z, on_kandidati=self._otvor_kandidatov
-        )
-
-    def _otvor_kandidatov(self) -> None:
-        if (
-            self._kandidati_okno is not None
-            and self._kandidati_okno.winfo_exists()
-        ):
-            self._kandidati_okno.obnov()
-            self._kandidati_okno.lift()
-            self._kandidati_okno.focus_set()
-            return
-        self._kandidati_okno = KandidatiOkno(self, self.z)
 
     def _novy(self) -> None:
         if not messagebox.askyesno(
