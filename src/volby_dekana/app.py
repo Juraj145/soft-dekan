@@ -7,8 +7,9 @@ from tkinter import filedialog, messagebox, ttk
 
 from .dialogs import ClenDialog
 from .docx_export import uloz_prezencnu_listinu
-from .models import Skupina, Zhromazdenie
+from .models import POCET_RIADKOV_MIESTA, Zhromazdenie
 from .quorum import vyhodnot_kvorum
+from .resources import cesta_k_asetu, priecinok_udajov
 
 APP_TITLE = "Voľby dekana TF SPU v Nitre"
 
@@ -23,12 +24,20 @@ class App(tk.Tk):
         self.z = Zhromazdenie()
         self._aktualna_cesta: str | None = None
 
+        self._nastav_ikonu()
         self._vytvor_menu()
         self._vytvor_widgety()
         self._obnov_zoznam()
         self._prepocitaj()
 
     # ---------------------------------------------------------------- UI build
+    def _nastav_ikonu(self) -> None:
+        """Nastaví ikonu okna na logo fakulty (ak je dostupné)."""
+        try:
+            self.iconbitmap(cesta_k_asetu("logo.ico"))
+        except Exception:
+            pass
+
     def _vytvor_menu(self) -> None:
         menubar = tk.Menu(self)
         m_subor = tk.Menu(menubar, tearoff=0)
@@ -49,12 +58,25 @@ class App(tk.Tk):
         root = ttk.Frame(self, padding=10)
         root.pack(fill="both", expand=True)
 
+        # --- Hlavička s logom fakulty ---
+        hlavicka = ttk.Frame(root)
+        hlavicka.pack(fill="x", pady=(0, 8))
+        self._logo_img = None
+        try:
+            self._logo_img = tk.PhotoImage(file=cesta_k_asetu("logo.png"))
+            ttk.Label(hlavicka, image=self._logo_img).pack(side="left")
+        except Exception:
+            pass
+        ttk.Label(
+            hlavicka, text=APP_TITLE, font=("TkDefaultFont", 13, "bold")
+        ).pack(side="left", padx=12)
+
         # --- Vstupné údaje ---
         ramec_vstup = ttk.LabelFrame(root, text="Vstupné údaje", padding=10)
         ramec_vstup.pack(fill="x")
 
         self.var_celkovy = tk.StringVar(value=str(self.z.celkovy_pocet))
-        self.var_miesto = tk.StringVar()
+        self.var_miesto_riadky = [tk.StringVar() for _ in range(POCET_RIADKOV_MIESTA)]
         self.var_datum = tk.StringVar()
         self.var_od = tk.StringVar()
         self.var_do = tk.StringVar()
@@ -72,10 +94,18 @@ class App(tk.Tk):
 
         ent_celk = _riadok(0, "Celkový počet členov:", self.var_celkovy, width=10)
         ent_celk.bind("<KeyRelease>", lambda _e: self._prepocitaj())
-        _riadok(0, "Miesto konania:", self.var_miesto, col=2)
         _riadok(1, "Dátum konania:", self.var_datum)
         _riadok(2, "Funkčné obdobie dekana od:", self.var_od)
-        _riadok(2, "do:", self.var_do, col=2)
+        _riadok(3, "do:", self.var_do)
+
+        # Miesto konania ako 5 riadkov adresy pod sebou (vpravo).
+        ttk.Label(ramec_vstup, text="Miesto konania:").grid(
+            row=0, column=2, sticky="nw", padx=4, pady=4
+        )
+        for i, var in enumerate(self.var_miesto_riadky):
+            ttk.Entry(ramec_vstup, textvariable=var).grid(
+                row=i, column=3, sticky="ew", padx=4, pady=2
+            )
 
         # --- Prezenčná listina ---
         ramec_zoznam = ttk.LabelFrame(root, text="Prezenčná listina", padding=10)
@@ -140,7 +170,7 @@ class App(tk.Tk):
 
     # ---------------------------------------------------------------- helpers
     def _zber_vstupy(self) -> None:
-        self.z.miesto = self.var_miesto.get().strip()
+        self.z.miesto_riadky = [v.get().strip() for v in self.var_miesto_riadky]
         self.z.datum = self.var_datum.get().strip()
         self.z.obdobie_od = self.var_od.get().strip()
         self.z.obdobie_do = self.var_do.get().strip()
@@ -242,7 +272,9 @@ class App(tk.Tk):
         self.z = Zhromazdenie()
         self._aktualna_cesta = None
         self.var_celkovy.set(str(self.z.celkovy_pocet))
-        for v in (self.var_miesto, self.var_datum, self.var_od, self.var_do):
+        for v in (self.var_datum, self.var_od, self.var_do):
+            v.set("")
+        for v in self.var_miesto_riadky:
             v.set("")
         self._obnov_zoznam()
         self._prepocitaj()
@@ -250,8 +282,10 @@ class App(tk.Tk):
     def _uloz(self) -> None:
         self._zber_vstupy()
         cesta = filedialog.asksaveasfilename(
-            title="Uložiť zhromaždenie",
+            title="Uložiť vstupné údaje",
             defaultextension=".json",
+            initialdir=priecinok_udajov(),
+            initialfile="vstupne_udaje.json",
             filetypes=[("Súbor zhromaždenia", "*.json")],
         )
         if not cesta:
@@ -263,7 +297,8 @@ class App(tk.Tk):
 
     def _otvor(self) -> None:
         cesta = filedialog.askopenfilename(
-            title="Otvoriť zhromaždenie",
+            title="Načítať vstupné údaje",
+            initialdir=priecinok_udajov(),
             filetypes=[("Súbor zhromaždenia", "*.json")],
         )
         if not cesta:
@@ -273,7 +308,8 @@ class App(tk.Tk):
         self.z = Zhromazdenie.from_dict(data)
         self._aktualna_cesta = cesta
         self.var_celkovy.set(str(self.z.celkovy_pocet))
-        self.var_miesto.set(self.z.miesto)
+        for v, hodnota in zip(self.var_miesto_riadky, self.z.miesto_riadky):
+            v.set(hodnota)
         self.var_datum.set(self.z.datum)
         self.var_od.set(self.z.obdobie_od)
         self.var_do.set(self.z.obdobie_do)
@@ -285,6 +321,8 @@ class App(tk.Tk):
         cesta = filedialog.asksaveasfilename(
             title="Generovať prezenčnú listinu",
             defaultextension=".docx",
+            initialdir=priecinok_udajov(),
+            initialfile="Prezenčná listina.docx",
             filetypes=[("Dokument Word", "*.docx")],
         )
         if not cesta:

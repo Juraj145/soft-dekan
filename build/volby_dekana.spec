@@ -10,7 +10,14 @@ _SRC = os.path.join(_REPO, "src")
 if _SRC not in sys.path:
     sys.path.insert(0, _SRC)
 
+_ASSETS = os.path.join(_SRC, "volby_dekana", "assets")
+_ICON = os.path.join(_ASSETS, "logo.ico")
+
 datas = collect_data_files("docx")
+datas += [
+    (os.path.join(_ASSETS, "logo.png"), "volby_dekana/assets"),
+    (os.path.join(_ASSETS, "logo.ico"), "volby_dekana/assets"),
+]
 hiddenimports = ["docx"] + collect_submodules("volby_dekana")
 
 a = Analysis(
@@ -42,6 +49,7 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
+    icon=_ICON,
 )
 
 coll = COLLECT(

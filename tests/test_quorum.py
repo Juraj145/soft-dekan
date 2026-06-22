@@ -46,3 +46,22 @@ def test_cele_meno_format():
     assert c.cele_meno == "Ing. Ján Novák, PhD."
     c2 = Clen(meno="Eva", priezvisko="Malá")
     assert c2.cele_meno == "Eva Malá"
+
+
+def test_miesto_riadky_serializacia_a_property():
+    z = Zhromazdenie(celkovy_pocet=20)
+    z.miesto_riadky = ["Technická fakulta SPU", "Tr. A. Hlinku 2", "949 76 Nitra", "", ""]
+    d = z.to_dict()
+    assert d["miesto_riadky"] == z.miesto_riadky
+    z2 = Zhromazdenie.from_dict(d)
+    assert z2.miesto_riadky == z.miesto_riadky
+    # property 'miesto' spojí len neprázdne riadky novými riadkami.
+    assert z2.miesto == "Technická fakulta SPU\nTr. A. Hlinku 2\n949 76 Nitra"
+
+
+def test_miesto_spatna_kompatibilita_stary_format():
+    # Starý JSON mal jediný reťazec 'miesto'; musí sa rozdeliť na 5 riadkov.
+    z = Zhromazdenie.from_dict({"celkovy_pocet": 20, "miesto": "Aula\nNitra"})
+    assert len(z.miesto_riadky) == 5
+    assert z.miesto_riadky[0] == "Aula"
+    assert z.miesto_riadky[1] == "Nitra"

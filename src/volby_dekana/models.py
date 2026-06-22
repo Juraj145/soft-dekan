@@ -68,17 +68,28 @@ class Clen:
         )
 
 
+# Počet riadkov adresy miesta konania.
+POCET_RIADKOV_MIESTA = 5
+
+
 @dataclass
 class Zhromazdenie:
     """Údaje o volebnom zhromaždení a jeho členoch."""
 
     celkovy_pocet: int = 20
-    miesto: str = ""
+    miesto_riadky: list[str] = field(
+        default_factory=lambda: [""] * POCET_RIADKOV_MIESTA
+    )
     datum: str = ""
     obdobie_od: str = ""
     obdobie_do: str = ""
     predseda_komisie_id: str | None = None
     clenovia: list[Clen] = field(default_factory=list)
+
+    @property
+    def miesto(self) -> str:
+        """Adresa miesta konania ako viacriadkový text (neprázdne riadky)."""
+        return "\n".join(r.strip() for r in self.miesto_riadky if r.strip())
 
     def clenovia_zoradeni(self) -> list[Clen]:
         """Všetci členovia zoradení abecedne podľa priezviska (potom mena)."""
@@ -101,7 +112,7 @@ class Zhromazdenie:
     def to_dict(self) -> dict:
         return {
             "celkovy_pocet": self.celkovy_pocet,
-            "miesto": self.miesto,
+            "miesto_riadky": list(self.miesto_riadky),
             "datum": self.datum,
             "obdobie_od": self.obdobie_od,
             "obdobie_do": self.obdobie_do,
@@ -113,13 +124,25 @@ class Zhromazdenie:
     def from_dict(cls, d: dict) -> "Zhromazdenie":
         return cls(
             celkovy_pocet=int(d.get("celkovy_pocet", 20)),
-            miesto=d.get("miesto", ""),
+            miesto_riadky=_nacitaj_miesto_riadky(d),
             datum=d.get("datum", ""),
             obdobie_od=d.get("obdobie_od", ""),
             obdobie_do=d.get("obdobie_do", ""),
             predseda_komisie_id=d.get("predseda_komisie_id"),
             clenovia=[Clen.from_dict(c) for c in d.get("clenovia", [])],
         )
+
+
+def _nacitaj_miesto_riadky(d: dict) -> list[str]:
+    """Načíta riadky adresy s podporou starého formátu (jeden reťazec)."""
+    if isinstance(d.get("miesto_riadky"), list):
+        riadky = [str(r) for r in d["miesto_riadky"]]
+    else:
+        stary = str(d.get("miesto", ""))
+        riadky = stary.split("\n") if stary else []
+    riadky = riadky[:POCET_RIADKOV_MIESTA]
+    riadky += [""] * (POCET_RIADKOV_MIESTA - len(riadky))
+    return riadky
 
 
 # Slovenská abeceda pre korektné abecedné zoradenie (č nasleduje za c atď.).

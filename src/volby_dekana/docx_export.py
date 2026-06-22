@@ -42,6 +42,21 @@ def _info_riadok(doc: Document, popis: str, hodnota: str) -> None:
     p.add_run(hodnota or "—")
 
 
+def _miesto_konania(doc: Document, riadky: list[str]) -> None:
+    """Vypíše 'Miesto konania' s adresou po jednotlivých riadkoch."""
+    neprazdne = [r.strip() for r in riadky if r.strip()]
+    p = doc.add_paragraph()
+    r = p.add_run("Miesto konania: ")
+    r.bold = True
+    if not neprazdne:
+        p.add_run("—")
+        return
+    p.add_run(neprazdne[0])
+    for riadok in neprazdne[1:]:
+        dalsi = doc.add_paragraph(riadok)
+        dalsi.paragraph_format.left_indent = Pt(72)
+
+
 def _zoznam_tabulka(doc: Document, popis_stlpca: str, mena: list[str], pocet_riadkov: int) -> None:
     table = doc.add_table(rows=1, cols=3)
     table.style = "Table Grid"
@@ -64,7 +79,7 @@ def vytvor_prezencnu_listinu(z: Zhromazdenie) -> Document:
     _nadpis(doc, NAZOV_CLENOVIA)
     doc.add_paragraph()
 
-    _info_riadok(doc, "Miesto konania", z.miesto)
+    _miesto_konania(doc, z.miesto_riadky)
     _info_riadok(doc, "Dátum", z.datum)
     if z.obdobie_od or z.obdobie_do:
         _info_riadok(

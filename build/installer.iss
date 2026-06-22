@@ -2,7 +2,7 @@
 ; Vyžaduje Inno Setup 6+. Spúšťa sa po PyInstaller builde (dist/VolbyDekana.exe).
 
 #define MyAppName "Voľby dekana TF SPU"
-#define MyAppVersion "0.1.0"
+#define MyAppVersion "0.2.0"
 #define MyAppPublisher "TF SPU v Nitre"
 #define MyAppExeName "VolbyDekana.exe"
 
@@ -20,6 +20,7 @@ Compression=lzma
 SolidCompression=yes
 WizardStyle=modern
 ArchitecturesInstallIn64BitMode=x64compatible
+SetupIconFile=..\src\volby_dekana\assets\logo.ico
 
 [Languages]
 Name: "slovak"; MessagesFile: "compiler:Languages\Slovak.isl"
