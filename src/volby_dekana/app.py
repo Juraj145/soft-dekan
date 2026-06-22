@@ -253,6 +253,11 @@ class App(tk.Tk):
         ttk.Button(
             panel_tlac, text="Nastaviť ako predsedu komisie", command=self._nastav_predsedu
         ).pack(side="left", padx=2)
+        ttk.Button(
+            panel_tlac,
+            text="Generovať prezenčnú listinu…",
+            command=self._generuj_listinu,
+        ).pack(side="right", padx=2)
 
         stlpce = ("priezvisko", "meno", "titul", "skupina", "stav", "komisia", "predseda")
         self.tree = ttk.Treeview(
@@ -592,18 +597,31 @@ class App(tk.Tk):
 
     def _generuj_listinu(self) -> None:
         self._zber_vstupy()
-        cesta = filedialog.asksaveasfilename(
-            title="Generovať prezenčnú listinu",
-            defaultextension=".docx",
-            initialdir=priecinok_udajov(),
-            initialfile="Prezenčná listina.docx",
-            filetypes=[("Dokument Word", "*.docx")],
-        )
-        if not cesta:
+        if not self.z.clenovia:
+            messagebox.showinfo(
+                "Prezenčná listina",
+                "Najprv pridajte aspoň jedného člena prezenčnej listiny.",
+                parent=self,
+            )
             return
-        uloz_prezencnu_listinu(self.z, cesta)
+        cesta = os.path.join(priecinok_udajov(), "Prezenčná listina.docx")
+        try:
+            uloz_prezencnu_listinu(self.z, cesta)
+        except OSError as e:
+            messagebox.showerror(
+                "Prezenčná listina", f"Uloženie zlyhalo:\n{e}", parent=self
+            )
+            return
+        if sys.platform == "win32":
+            try:
+                os.startfile(cesta)
+                return
+            except OSError:
+                pass
         messagebox.showinfo(
-            "Hotovo", f"Prezenčná listina bola uložená:\n{cesta}", parent=self
+            "Prezenčná listina",
+            f"Prezenčná listina bola uložená a otvorená:\n{cesta}",
+            parent=self,
         )
 
     # ---------------------------------------------------------------- aktualizácia
