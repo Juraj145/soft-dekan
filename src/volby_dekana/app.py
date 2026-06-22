@@ -121,34 +121,47 @@ class App(tk.Tk):
         self._zobraz_stranku()
 
     def _vytvor_uvod(self) -> None:
-        """Úvodná titulná obrazovka zobrazená pred sprievodcom."""
-        self.uvod = tk.Frame(self, bg="white")
+        """Úvodná titulná obrazovka – fullscreen ako prezentácia."""
+        self._geom_pred_uvodom = self.geometry()
+        self._menu_bar = self.cget("menu")
+        self.config(menu="")
+        self.attributes("-fullscreen", True)
+        self.bind("<Escape>", lambda _e: self._zavri_uvod())
+        bg_color = "#9AADB7"
+        self.uvod = tk.Frame(self, bg=bg_color)
         self.uvod.place(relx=0, rely=0, relwidth=1, relheight=1)
-        stred = tk.Frame(self.uvod, bg="white")
-        stred.place(relx=0.5, rely=0.5, anchor="center")
         self._uvod_img = None
         try:
             self._uvod_img = tk.PhotoImage(file=cesta_k_asetu("uvod.png"))
-            tk.Label(
-                stred, image=self._uvod_img, bg="white", bd=1, relief="solid"
-            ).pack()
         except Exception:
+            pass
+        if self._uvod_img:
             tk.Label(
-                stred,
+                self.uvod, image=self._uvod_img, bg=bg_color, bd=0
+            ).place(relx=0.5, rely=0.45, anchor="center")
+        else:
+            tk.Label(
+                self.uvod,
                 text="Voľba dekana Technickej fakulty\nSPU v Nitre 2026 – 2030",
-                font=("TkDefaultFont", 18, "bold"),
-                bg="white",
+                font=("TkDefaultFont", 24, "bold"),
+                bg=bg_color,
+                fg="white",
                 justify="center",
-            ).pack(pady=60)
+            ).place(relx=0.5, rely=0.4, anchor="center")
         ttk.Button(
-            stred, text="Pokračovať ▶", command=self._zavri_uvod
-        ).pack(pady=16)
+            self.uvod, text="Pokračovať ▶", command=self._zavri_uvod
+        ).place(relx=0.5, rely=0.92, anchor="center")
         self.uvod.lift()
         self.uvod.tkraise()
 
     def _zavri_uvod(self) -> None:
         if hasattr(self, "uvod") and self.uvod.winfo_exists():
             self.uvod.destroy()
+        self.unbind("<Escape>")
+        self.attributes("-fullscreen", False)
+        self.geometry("960x720")
+        if hasattr(self, "_menu_bar") and self._menu_bar:
+            self.config(menu=self._menu_bar)
 
     def _vytvor_stranku_listina(self, kontajner: tk.Misc) -> ttk.Frame:
         root = ttk.Frame(kontajner)
