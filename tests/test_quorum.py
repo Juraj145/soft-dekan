@@ -1,5 +1,12 @@
 from volby_dekana.docx_export import vytvor_prezencnu_listinu
-from volby_dekana.models import Clen, Material, Skupina, Stav, Zhromazdenie
+from volby_dekana.models import (
+    Clen,
+    Kandidat,
+    Material,
+    Skupina,
+    Stav,
+    Zhromazdenie,
+)
 from volby_dekana.quorum import potrebne_kvorum, vyhodnot_kvorum
 
 
@@ -106,3 +113,24 @@ def test_komisia_a_materialy_serializacia():
     assert z2.predseda_komisie_id == z.predseda_komisie_id
     assert z2.materialy_komisie[0].nazov == "zapisnica.pdf"
     assert z2.materialy_komisie[0].cesta == "/x/zapisnica.pdf"
+
+
+def test_kandidati_zoradenie_a_serializacia():
+    z = Zhromazdenie(celkovy_pocet=20)
+    z.kandidati = [
+        Kandidat(meno="Eva", priezvisko="Žiaková", titul_pred="Ing.", titul_za="PhD."),
+        Kandidat(meno="Marek", priezvisko="Adam", pocet_navrhov=7),
+    ]
+    z.kandidati[0].dokumenty["Životopis"] = Material(
+        nazov="cv.pdf", cesta="/x/cv.pdf"
+    )
+    # Zoradenie podľa priezviska.
+    poradie = [k.priezvisko for k in z.kandidati_zoradeni()]
+    assert poradie == ["Adam", "Žiaková"]
+    # Round-trip serializácia vrátane návrhov a dokumentov.
+    z2 = Zhromazdenie.from_dict(z.to_dict())
+    adam = next(k for k in z2.kandidati if k.priezvisko == "Adam")
+    ziak = next(k for k in z2.kandidati if k.priezvisko == "Žiaková")
+    assert adam.pocet_navrhov == 7
+    assert ziak.cele_meno == "Ing. Eva Žiaková, PhD."
+    assert ziak.dokument("Životopis").nazov == "cv.pdf"

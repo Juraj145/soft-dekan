@@ -11,6 +11,7 @@ from tkinter import filedialog, messagebox, ttk
 from . import __version__
 from .dialogs import ClenDialog
 from .docx_export import uloz_prezencnu_listinu
+from .kandidati_okno import KandidatiOkno
 from .komisia_okno import KomisiaOkno
 from .models import POCET_KOMISIA, POCET_RIADKOV_MIESTA, Zhromazdenie
 from .quorum import vyhodnot_kvorum
@@ -30,6 +31,7 @@ class App(tk.Tk):
         self.z = Zhromazdenie()
         self._aktualna_cesta: str | None = None
         self._komisia_okno: KomisiaOkno | None = None
+        self._kandidati_okno: KandidatiOkno | None = None
 
         self._nastav_ikonu()
         self._vytvor_menu()
@@ -148,6 +150,9 @@ class App(tk.Tk):
         ttk.Button(
             panel_tlac, text="Volebná komisia…", command=self._otvor_komisiu
         ).pack(side="left", padx=2)
+        ttk.Button(
+            panel_tlac, text="Kandidáti na dekana…", command=self._otvor_kandidatov
+        ).pack(side="left", padx=2)
 
         stlpce = ("priezvisko", "meno", "titul", "skupina", "stav", "komisia", "predseda")
         self.tree = ttk.Treeview(
@@ -231,6 +236,12 @@ class App(tk.Tk):
         if self._komisia_okno is not None and self._komisia_okno.winfo_exists():
             self._komisia_okno.z = self.z
             self._komisia_okno.obnov()
+        if (
+            self._kandidati_okno is not None
+            and self._kandidati_okno.winfo_exists()
+        ):
+            self._kandidati_okno.z = self.z
+            self._kandidati_okno.obnov()
 
     def _prepocitaj(self) -> None:
         self._zber_vstupy()
@@ -336,7 +347,20 @@ class App(tk.Tk):
             self._komisia_okno.lift()
             self._komisia_okno.focus_set()
             return
-        self._komisia_okno = KomisiaOkno(self, self.z)
+        self._komisia_okno = KomisiaOkno(
+            self, self.z, on_kandidati=self._otvor_kandidatov
+        )
+
+    def _otvor_kandidatov(self) -> None:
+        if (
+            self._kandidati_okno is not None
+            and self._kandidati_okno.winfo_exists()
+        ):
+            self._kandidati_okno.obnov()
+            self._kandidati_okno.lift()
+            self._kandidati_okno.focus_set()
+            return
+        self._kandidati_okno = KandidatiOkno(self, self.z)
 
     def _novy(self) -> None:
         if not messagebox.askyesno(

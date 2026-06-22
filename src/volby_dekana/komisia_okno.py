@@ -5,6 +5,7 @@ import os
 import shutil
 import sys
 import tkinter as tk
+from collections.abc import Callable
 from tkinter import filedialog, messagebox, ttk
 
 from .models import Material, Zhromazdenie
@@ -14,12 +15,18 @@ from .resources import priecinok_zapisnic
 class KomisiaOkno(tk.Toplevel):
     """Zobrazí členov volebnej komisie a umožní vkladať zápisnice."""
 
-    def __init__(self, parent: tk.Misc, z: Zhromazdenie) -> None:
+    def __init__(
+        self,
+        parent: tk.Misc,
+        z: Zhromazdenie,
+        on_kandidati: Callable[[], None] | None = None,
+    ) -> None:
         super().__init__(parent)
         self.z = z
+        self._on_kandidati = on_kandidati
         self.title("Volebná komisia")
-        self.geometry("700x540")
-        self.minsize(560, 440)
+        self.geometry("700x560")
+        self.minsize(560, 460)
         self.transient(parent)
         self._vytvor_widgety()
         self.obnov()
@@ -42,6 +49,13 @@ class KomisiaOkno(tk.Toplevel):
         self.tree_cl.column("clen", width=470, anchor="w")
         self.tree_cl.column("funkcia", width=150, anchor="w")
         self.tree_cl.pack(fill="x")
+
+        if self._on_kandidati is not None:
+            ttk.Button(
+                ramec_cl,
+                text="Kandidáti na dekana…",
+                command=self._on_kandidati,
+            ).pack(anchor="e", pady=(8, 0))
 
         ramec_z = ttk.LabelFrame(
             self, text="Zápisnice zo zasadnutia volebnej komisie", padding=10

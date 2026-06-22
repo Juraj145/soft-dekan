@@ -6,6 +6,15 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum
 
 
+def format_cele_meno(titul_pred: str, meno: str, priezvisko: str, titul_za: str) -> str:
+    """Meno v tvare 'Ing. Meno Priezvisko, PhD.' (tituly voliteľné)."""
+    zaklad = " ".join(
+        c for c in (titul_pred.strip(), meno.strip(), priezvisko.strip()) if c
+    )
+    za = titul_za.strip()
+    return f"{zaklad}, {za}" if za else zaklad
+
+
 class Skupina(str, Enum):
     """Skupina, do ktorej člen volebného zhromaždenia patrí."""
 
@@ -41,13 +50,9 @@ class Clen:
     @property
     def cele_meno(self) -> str:
         """Meno v tvare 'Ing. Meno Priezvisko, PhD.' (tituly voliteľné)."""
-        zaklad = " ".join(
-            c
-            for c in (self.titul_pred.strip(), self.meno.strip(), self.priezvisko.strip())
-            if c
+        return format_cele_meno(
+            self.titul_pred, self.meno, self.priezvisko, self.titul_za
         )
-        za = self.titul_za.strip()
-        return f"{zaklad}, {za}" if za else zaklad
 
     def to_dict(self) -> dict:
         d = asdict(self)
@@ -95,6 +100,68 @@ class Material:
         )
 
 
+# Typy dokumentov, ktoré sa prikladajú ku kandidátovi na dekana (v poradí).
+TYPY_DOKUMENTOV_KANDIDATA = [
+    "Súhlas so spracovaním osobných údajov",
+    "Životopis",
+    "Výpis z registra trestov",
+    "Návrh stratégie rozvoja fakulty",
+]
+
+
+@dataclass
+class Kandidat:
+    """Kandidát na dekana TF s návrhmi z akademickej obce a dokumentmi."""
+
+    meno: str
+    priezvisko: str
+    titul_pred: str = ""
+    titul_za: str = ""
+    pocet_navrhov: int = 0
+    dokumenty: dict[str, Material] = field(default_factory=dict)
+    id: str = field(default_factory=lambda: uuid.uuid4().hex)
+
+    @property
+    def tituly(self) -> str:
+        casti = [self.titul_pred.strip(), self.titul_za.strip()]
+        return " / ".join(c for c in casti if c)
+
+    @property
+    def cele_meno(self) -> str:
+        return format_cele_meno(
+            self.titul_pred, self.meno, self.priezvisko, self.titul_za
+        )
+
+    def dokument(self, typ: str) -> Material | None:
+        return self.dokumenty.get(typ)
+
+    def to_dict(self) -> dict:
+        return {
+            "meno": self.meno,
+            "priezvisko": self.priezvisko,
+            "titul_pred": self.titul_pred,
+            "titul_za": self.titul_za,
+            "pocet_navrhov": self.pocet_navrhov,
+            "dokumenty": {k: m.to_dict() for k, m in self.dokumenty.items()},
+            "id": self.id,
+        }
+
+    @classmethod
+    def from_dict(cls, d: dict) -> "Kandidat":
+        return cls(
+            meno=d.get("meno", ""),
+            priezvisko=d.get("priezvisko", ""),
+            titul_pred=d.get("titul_pred", ""),
+            titul_za=d.get("titul_za", ""),
+            pocet_navrhov=int(d.get("pocet_navrhov", 0)),
+            dokumenty={
+                k: Material.from_dict(v)
+                for k, v in d.get("dokumenty", {}).items()
+            },
+            id=d.get("id", uuid.uuid4().hex),
+        )
+
+
 @dataclass
 class Zhromazdenie:
     """Údaje o volebnom zhromaždení a jeho členoch."""
@@ -109,6 +176,7 @@ class Zhromazdenie:
     predseda_komisie_id: str | None = None
     komisia_ids: list[str] = field(default_factory=list)
     materialy_komisie: list[Material] = field(default_factory=list)
+    kandidati: list[Kandidat] = field(default_factory=list)
     clenovia: list[Clen] = field(default_factory=list)
 
     @property
@@ -134,6 +202,13 @@ class Zhromazdenie:
                 return c
         return None
 
+    def kandidati_zoradeni(self) -> list[Kandidat]:
+        """Kandidáti zoradení abecedne podľa priezviska (potom mena)."""
+        return sorted(
+            self.kandidati,
+            key=lambda k: (_key_sk(k.priezvisko), _key_sk(k.meno)),
+        )
+
     def komisia(self) -> list[Clen]:
         """Členovia volebnej komisie (predseda ako prvý, potom podľa priezviska)."""
         vybrani = [c for c in self.clenovia if c.id in self.komisia_ids]
@@ -156,6 +231,7 @@ class Zhromazdenie:
             "predseda_komisie_id": self.predseda_komisie_id,
             "komisia_ids": list(self.komisia_ids),
             "materialy_komisie": [m.to_dict() for m in self.materialy_komisie],
+            "kandidati": [k.to_dict() for k in self.kandidati],
             "clenovia": [c.to_dict() for c in self.clenovia],
         }
 
@@ -172,6 +248,7 @@ class Zhromazdenie:
             materialy_komisie=[
                 Material.from_dict(m) for m in d.get("materialy_komisie", [])
             ],
+            kandidati=[Kandidat.from_dict(k) for k in d.get("kandidati", [])],
             clenovia=[Clen.from_dict(c) for c in d.get("clenovia", [])],
         )
 
