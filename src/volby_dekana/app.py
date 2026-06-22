@@ -143,6 +143,8 @@ class App(tk.Tk):
         ttk.Button(
             stred, text="Pokračovať ▶", command=self._zavri_uvod
         ).pack(pady=16)
+        self.uvod.lift()
+        self.uvod.tkraise()
 
     def _zavri_uvod(self) -> None:
         if hasattr(self, "uvod") and self.uvod.winfo_exists():
