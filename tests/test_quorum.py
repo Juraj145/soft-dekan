@@ -1,3 +1,4 @@
+from volby_dekana.docx_export import vytvor_prezencnu_listinu
 from volby_dekana.models import Clen, Skupina, Stav, Zhromazdenie
 from volby_dekana.quorum import potrebne_kvorum, vyhodnot_kvorum
 
@@ -65,3 +66,25 @@ def test_miesto_spatna_kompatibilita_stary_format():
     assert len(z.miesto_riadky) == 5
     assert z.miesto_riadky[0] == "Aula"
     assert z.miesto_riadky[1] == "Nitra"
+
+
+def test_prezencna_listina_z_predlohy():
+    z = Zhromazdenie(celkovy_pocet=20, datum="15. 09. 2024")
+    z.miesto_riadky = ["Aula SPU", "Tr. A. Hlinku 2", "949 76 Nitra", "", ""]
+    z.clenovia = [_clen("Žiak"), _clen("Adam"), _clen("Čech")]
+    doc = vytvor_prezencnu_listinu(z)
+    # Miesto a dátum sú vyplnené.
+    texty = [p.text for p in doc.paragraphs]
+    assert any("Miesto konania:" in t and "Aula SPU" in t for t in texty)
+    assert any(t.strip().startswith("Dátum:") and "15. 09. 2024" in t for t in texty)
+    # Tabuľka členov: hlavička + 20 riadkov; mená zoradené podľa priezviska.
+    tab = doc.tables[1]
+    assert len(tab.rows) == 21
+    assert tab.rows[1].cells[1].text == "Test Adam"
+    assert tab.rows[2].cells[1].text == "Test Čech"
+    assert tab.rows[3].cells[1].text == "Test Žiak"
+    assert tab.rows[4].cells[1].text == ""
+    # Hostia: poradové čísla sú súvislé (oprava preskočeného 21).
+    hostia = doc.tables[3]
+    cisla = [hostia.rows[i].cells[0].text for i in range(1, len(hostia.rows))]
+    assert cisla == [f"{i}." for i in range(1, len(hostia.rows))]

@@ -10,3 +10,4 @@ dist/
 .pytest_cache/
 *.docx
 !tests/**/*.docx
+!src/volby_dekana/assets/*.docx

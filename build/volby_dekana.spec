@@ -17,6 +17,7 @@ datas = collect_data_files("docx")
 datas += [
     (os.path.join(_ASSETS, "logo.png"), "volby_dekana/assets"),
     (os.path.join(_ASSETS, "logo.ico"), "volby_dekana/assets"),
+    (os.path.join(_ASSETS, "prezencna_template.docx"), "volby_dekana/assets"),
 ]
 hiddenimports = ["docx"] + collect_submodules("volby_dekana")
 
