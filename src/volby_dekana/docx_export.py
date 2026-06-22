@@ -195,6 +195,39 @@ def uloz_hlasovaci_listok(
     vytvor_hlasovaci_listok(z, kolo, kandidati).save(cesta)
 
 
+# ----------------------------------- prebratie / protokol o prebratí lístka
+def _vypln_prebratie(z: Zhromazdenie, kolo: int, predloha: str) -> Document:
+    """Vyplní formulár prebratia/protokolu menami členov (podľa kroku 1)."""
+    doc = Document(cesta_k_asetu(predloha))
+    miesto = ", ".join(r.strip() for r in z.miesto_riadky if r.strip())
+    for p in doc.paragraphs:
+        t = p.text.strip()
+        if t.startswith("Miesto konania"):
+            _nastav_za_tabulatorom(p, miesto)
+        elif t.startswith("Dátum"):
+            _nastav_za_tabulatorom(p, z.datum)
+        elif t.startswith("Kolo voľby"):
+            _nastav_za_tabulatorom(p, f"{kolo}. kolo")
+    mena = [c.cele_meno for c in z.clenovia_zoradeni()]
+    pocet = max(z.celkovy_pocet, len(mena))
+    _vypln_tabulku(
+        doc.tables[1],
+        [[f"{i + 1}.", mena[i] if i < len(mena) else "", "", ""]
+         for i in range(pocet)],
+    )
+    return doc
+
+
+def uloz_prebratie_listka(z: Zhromazdenie, kolo: int, cesta: str) -> None:
+    """Uloží 'Prebratie hlasovacieho lístka' pre dané kolo."""
+    _vypln_prebratie(z, kolo, "prebratie_template.docx").save(cesta)
+
+
+def uloz_protokol_listka(z: Zhromazdenie, kolo: int, cesta: str) -> None:
+    """Uloží 'Protokol o prebratí nového hlasovacieho lístka' pre dané kolo."""
+    _vypln_prebratie(z, kolo, "protokol_listok_template.docx").save(cesta)
+
+
 # ----------------------------------------------------- zápisnica z volieb (krok 4)
 # Indexy tabuliek v predlohe zápisnice.
 _ZAP_TAB_KOMISIA = 1

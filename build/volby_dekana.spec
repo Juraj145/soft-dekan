@@ -21,6 +21,8 @@ datas += [
     (os.path.join(_ASSETS, "prezencna_template.docx"), "volby_dekana/assets"),
     (os.path.join(_ASSETS, "pokyny_template.docx"), "volby_dekana/assets"),
     (os.path.join(_ASSETS, "hlasovaci_listok_template.docx"), "volby_dekana/assets"),
+    (os.path.join(_ASSETS, "prebratie_template.docx"), "volby_dekana/assets"),
+    (os.path.join(_ASSETS, "protokol_listok_template.docx"), "volby_dekana/assets"),
     (os.path.join(_ASSETS, "zapisnica_template.docx"), "volby_dekana/assets"),
 ]
 hiddenimports = [

@@ -15,6 +15,8 @@ from tkinter import messagebox, ttk
 
 from .docx_export import (
     uloz_hlasovaci_listok,
+    uloz_prebratie_listka,
+    uloz_protokol_listka,
     uloz_zapisnicu,
 )
 from .models import Kandidat, Stav, Zhromazdenie
@@ -30,6 +32,10 @@ class VolbaStav:
     v2: VysledokKola | None = None
     listky_k1: bool = False
     listky_k2: bool = False
+    prebratie_k1: bool = False
+    prebratie_k2: bool = False
+    protokol_k1: bool = False
+    protokol_k2: bool = False
 
 
 class KoloPanel(ttk.Frame):
@@ -61,6 +67,19 @@ class KoloPanel(ttk.Frame):
     def _listky_hotove(self) -> bool:
         return self.stav.listky_k1 if self.kolo == 1 else self.stav.listky_k2
 
+    def _prebratie_hotove(self) -> bool:
+        return (
+            self.stav.prebratie_k1 if self.kolo == 1 else self.stav.prebratie_k2
+        )
+
+    def _protokol_hotove(self) -> bool:
+        return (
+            self.stav.protokol_k1 if self.kolo == 1 else self.stav.protokol_k2
+        )
+
+    def _preddoklady_hotove(self) -> bool:
+        return self._prebratie_hotove() and self._protokol_hotove()
+
     # ------------------------------------------------------------------ build
     def _vytvor_widgety(self) -> None:
         ramec = ttk.LabelFrame(
@@ -68,12 +87,32 @@ class KoloPanel(ttk.Frame):
         )
         ramec.pack(fill="x")
 
+        ttk.Label(
+            ramec,
+            text="1) Pred hlasovaním vygenerujte oba doklady:",
+        ).pack(anchor="w")
+        self.btn_prebratie = ttk.Button(
+            ramec,
+            text="Generovať prebratie hlasovacieho lístka…",
+            command=self._generuj_prebratie,
+        )
+        self.btn_prebratie.pack(anchor="w", pady=(2, 2))
+        self.btn_protokol = ttk.Button(
+            ramec,
+            text="Generovať protokol o prebratí nového hlasovacieho lístka…",
+            command=self._generuj_protokol,
+        )
+        self.btn_protokol.pack(anchor="w", pady=(2, 6))
+
+        ttk.Label(
+            ramec, text="2) Potom vygenerujte hlasovacie lístky:"
+        ).pack(anchor="w")
         self.btn_listky = ttk.Button(
             ramec,
             text=f"Generovať hlasovacie lístky ({self.kolo}. kolo)…",
             command=self._generuj_listky,
         )
-        self.btn_listky.pack(anchor="w", pady=(0, 6))
+        self.btn_listky.pack(anchor="w", pady=(2, 6))
 
         self.lbl_pokyn = tk.Label(
             ramec,
@@ -165,32 +204,50 @@ class KoloPanel(ttk.Frame):
         self._aktualizuj_stav()
 
     def _aktualizuj_stav(self) -> None:
-        """Sprístupní/zablokuje generovanie lístkov a zadávanie hlasov."""
+        """Sprístupní/zablokuje generovanie dokladov, lístkov a zadávanie hlasov."""
         kandidati = self._kandidati()
-        # Generovanie lístkov.
+        # 2. kolo je dostupné až po vyhodnotení 1. kola bez zvoleného kandidáta.
         if self.kolo == 2 and not kandidati:
-            self.btn_listky.config(state="disabled")
+            for w in (self.btn_prebratie, self.btn_protokol, self.btn_listky):
+                w.config(state="disabled")
+            self._nastav_zadavanie(False)
             self.lbl_pokyn.config(
                 text="2. kolo sa sprístupní po vyhodnotení 1. kola, "
                 "ak nikto nezíska potrebnú väčšinu."
             )
-        else:
-            self.btn_listky.config(state="normal")
+            return
+
+        self.btn_prebratie.config(state="normal")
+        self.btn_protokol.config(state="normal")
+        # Hlasovacie lístky – až po vygenerovaní prebratia aj protokolu.
+        self.btn_listky.config(
+            state="normal" if self._preddoklady_hotove() else "disabled"
+        )
 
         # Zadávanie hlasov – až po vygenerovaní hlasovacích lístkov.
-        zadavanie = self._listky_hotove() and bool(kandidati)
-        stav = "normal" if zadavanie else "disabled"
+        self._nastav_zadavanie(self._listky_hotove() and bool(kandidati))
+
+        if not kandidati:
+            self.lbl_pokyn.config(text="")
+        elif not self._preddoklady_hotove():
+            self.lbl_pokyn.config(
+                text="Najprv vygenerujte prebratie hlasovacieho lístka aj "
+                "protokol o prebratí nového lístka, potom hlasovacie lístky."
+            )
+        elif not self._listky_hotove():
+            self.lbl_pokyn.config(
+                text="Vygenerujte hlasovacie lístky – až potom je možné "
+                "zadávať výsledky volieb."
+            )
+        else:
+            self.lbl_pokyn.config(text="")
+
+    def _nastav_zadavanie(self, aktivne: bool) -> None:
+        stav = "normal" if aktivne else "disabled"
         for ent in self._entry_hlasy.values():
             ent.config(state=stav)
         self.ent_neplatne.config(state=stav)
         self.btn_vyhodnot.config(state=stav)
-        if kandidati and not self._listky_hotove():
-            self.lbl_pokyn.config(
-                text="Najprv vygenerujte hlasovacie lístky – až potom je "
-                "možné zadávať výsledky volieb."
-            )
-        elif kandidati:
-            self.lbl_pokyn.config(text="")
 
     # ----------------------------------------------------------- zber hlasov
     @staticmethod
@@ -228,6 +285,48 @@ class KoloPanel(ttk.Frame):
             self.z.neplatne_k2 = self._cislo(self._var_neplatne)
 
     # --------------------------------------------------------------- akcie
+    def _generuj_prebratie(self) -> None:
+        cesta = os.path.join(
+            priecinok_udajov(),
+            f"Prebratie hlasovacieho lístka - {self.kolo}. kolo.docx",
+        )
+        try:
+            uloz_prebratie_listka(self.z, self.kolo, cesta)
+        except OSError as e:
+            messagebox.showerror(
+                "Prebratie hlasovacieho lístka",
+                f"Uloženie zlyhalo:\n{e}",
+                parent=self,
+            )
+            return
+        if self.kolo == 1:
+            self.stav.prebratie_k1 = True
+        else:
+            self.stav.prebratie_k2 = True
+        self._aktualizuj_stav()
+        self._otvor_subor(cesta, "Prebratie hlasovacieho lístka")
+
+    def _generuj_protokol(self) -> None:
+        cesta = os.path.join(
+            priecinok_udajov(),
+            f"Protokol o prebratí nového hlasovacieho lístka - {self.kolo}. kolo.docx",
+        )
+        try:
+            uloz_protokol_listka(self.z, self.kolo, cesta)
+        except OSError as e:
+            messagebox.showerror(
+                "Protokol o prebratí nového hlasovacieho lístka",
+                f"Uloženie zlyhalo:\n{e}",
+                parent=self,
+            )
+            return
+        if self.kolo == 1:
+            self.stav.protokol_k1 = True
+        else:
+            self.stav.protokol_k2 = True
+        self._aktualizuj_stav()
+        self._otvor_subor(cesta, "Protokol o prebratí nového hlasovacieho lístka")
+
     def _generuj_listky(self) -> None:
         kandidati = self._kandidati()
         if not kandidati:
@@ -276,6 +375,8 @@ class KoloPanel(ttk.Frame):
             self.stav.v1 = v
             self.stav.v2 = None
             self.stav.listky_k2 = False
+            self.stav.prebratie_k2 = False
+            self.stav.protokol_k2 = False
         else:
             self.stav.v2 = v
         self.lbl_vysledok.config(

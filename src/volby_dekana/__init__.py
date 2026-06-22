@@ -1,3 +1,3 @@
 """Voľby dekana TF SPU v Nitre – desktopová aplikácia."""
 
-__version__ = "0.12.0"
+__version__ = "0.13.0"
