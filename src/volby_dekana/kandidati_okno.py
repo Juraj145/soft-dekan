@@ -287,16 +287,10 @@ class KandidatiPanel(ttk.Frame):
                 parent=self,
             )
             return
-        cesta = filedialog.asksaveasfilename(
-            parent=self,
-            title="Generovať pokyny k vyplňovaniu hlasovacieho lístka",
-            defaultextension=".docx",
-            initialdir=priecinok_udajov(),
-            initialfile="Pokyny k vyplňovaniu hlasovacieho lístka.docx",
-            filetypes=[("Dokument Word", "*.docx")],
+        cesta = os.path.join(
+            priecinok_udajov(),
+            "Pokyny k vyplňovaniu hlasovacieho lístka.docx",
         )
-        if not cesta:
-            return
         try:
             uloz_pokyny_hlasovanie(cesta)
         except OSError as e:
@@ -304,9 +298,15 @@ class KandidatiPanel(ttk.Frame):
                 "Pokyny k hlasovaniu", f"Uloženie zlyhalo:\n{e}", parent=self
             )
             return
+        if sys.platform == "win32":
+            try:
+                os.startfile(cesta)
+                return
+            except OSError:
+                pass
         messagebox.showinfo(
             "Pokyny k hlasovaniu",
-            f"Pokyny boli uložené:\n{cesta}",
+            f"Pokyny boli uložené a otvorené:\n{cesta}",
             parent=self,
         )
 
