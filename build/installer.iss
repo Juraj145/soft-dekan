@@ -28,7 +28,8 @@ Name: "slovak"; MessagesFile: "compiler:Languages\Slovak.isl"
 Name: "desktopicon"; Description: "Vytvoriť zástupcu na ploche"; GroupDescription: "Doplnkové úlohy:"
 
 [Files]
-Source: "..\dist\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\VolbyDekana\{#MyAppExeName}"; DestDir: "{app}"; Flags: ignoreversion
+Source: "..\dist\VolbyDekana\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"

@@ -39,11 +39,11 @@ jobs:
         run: choco install innosetup --no-progress -y
       - name: Build inštalátora (Inno Setup)
         run: '& "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" build\installer.iss'
-      - name: Nahranie .exe
+      - name: Nahranie aplikácie (priečinok)
         uses: actions/upload-artifact@v4
         with:
-          name: VolbyDekana-exe
-          path: dist/VolbyDekana.exe
+          name: VolbyDekana-app
+          path: dist/VolbyDekana/
       - name: Nahranie inštalátora
         uses: actions/upload-artifact@v4
         with:
