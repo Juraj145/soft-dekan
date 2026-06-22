@@ -50,6 +50,7 @@ class KoloPanel(ttk.Frame):
         self.stav = stav
         self._var_hlasy: dict[str, tk.StringVar] = {}
         self._var_neplatne = tk.StringVar()
+        self._var_platne = tk.StringVar(value="0")
         self._entry_hlasy: dict[str, ttk.Entry] = {}
         self._vytvor_widgety()
         self.obnov()
@@ -129,6 +130,11 @@ class KoloPanel(ttk.Frame):
 
         spod = ttk.Frame(ramec)
         spod.pack(fill="x", pady=(6, 0))
+        ttk.Label(spod, text="Počet platných hlasov:").pack(side="left")
+        ttk.Label(
+            spod, textvariable=self._var_platne, width=6,
+            font=("TkDefaultFont", 9, "bold"),
+        ).pack(side="left", padx=(4, 16))
         ttk.Label(spod, text="Počet neplatných hlasov:").pack(side="left")
         self.ent_neplatne = ttk.Entry(spod, textvariable=self._var_neplatne, width=6)
         self.ent_neplatne.pack(side="left", padx=(4, 16))
@@ -180,6 +186,7 @@ class KoloPanel(ttk.Frame):
                 row=i, column=0, sticky="w", padx=(0, 8), pady=2
             )
             var = tk.StringVar(value=str(getattr(k, self._atribut)))
+            var.trace_add("write", lambda *_a: self._prepocitaj_platne())
             self._var_hlasy[k.id] = var
             ent = ttk.Entry(self.box_hlasy, textvariable=var, width=6)
             ent.grid(row=i, column=1, sticky="w", pady=2)
@@ -188,9 +195,15 @@ class KoloPanel(ttk.Frame):
                 row=i, column=2, sticky="w"
             )
 
+    def _prepocitaj_platne(self) -> None:
+        """Aktualizuje zobrazený počet platných hlasov (súčet hlasov kandidátov)."""
+        spolu = sum(self._cislo(v) for v in self._var_hlasy.values())
+        self._var_platne.set(str(spolu))
+
     def obnov(self) -> None:
         kandidati = self._kandidati()
         self._riadky_hlasov(kandidati)
+        self._prepocitaj_platne()
         self._var_neplatne.set(
             str(self.z.neplatne_k1 if self.kolo == 1 else self.z.neplatne_k2)
         )
