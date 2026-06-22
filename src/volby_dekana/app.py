@@ -2,14 +2,19 @@
 from __future__ import annotations
 
 import json
+import os
+import sys
+import threading
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 
+from . import __version__
 from .dialogs import ClenDialog
 from .docx_export import uloz_prezencnu_listinu
 from .models import POCET_RIADKOV_MIESTA, Zhromazdenie
 from .quorum import vyhodnot_kvorum
 from .resources import cesta_k_asetu, priecinok_udajov
+from . import updater
 
 APP_TITLE = "Voľby dekana TF SPU v Nitre"
 
@@ -52,6 +57,13 @@ class App(tk.Tk):
         m_subor.add_separator()
         m_subor.add_command(label="Koniec", command=self.destroy)
         menubar.add_cascade(label="Súbor", menu=m_subor)
+
+        m_pomoc = tk.Menu(menubar, tearoff=0)
+        m_pomoc.add_command(
+            label="Aktualizovať program…", command=self._aktualizuj_program
+        )
+        m_pomoc.add_command(label="O programe…", command=self._o_programe)
+        menubar.add_cascade(label="Pomoc", menu=m_pomoc)
         self.config(menu=menubar)
 
     def _vytvor_widgety(self) -> None:
@@ -70,6 +82,9 @@ class App(tk.Tk):
         ttk.Label(
             hlavicka, text=APP_TITLE, font=("TkDefaultFont", 13, "bold")
         ).pack(side="left", padx=12)
+        ttk.Button(
+            hlavicka, text="Aktualizovať program", command=self._aktualizuj_program
+        ).pack(side="right")
 
         # --- Vstupné údaje ---
         ramec_vstup = ttk.LabelFrame(root, text="Vstupné údaje", padding=10)
@@ -331,6 +346,82 @@ class App(tk.Tk):
         messagebox.showinfo(
             "Hotovo", f"Prezenčná listina bola uložená:\n{cesta}", parent=self
         )
+
+    # ---------------------------------------------------------------- aktualizácia
+    def _o_programe(self) -> None:
+        messagebox.showinfo(
+            "O programe",
+            f"{APP_TITLE}\nVerzia {__version__}",
+            parent=self,
+        )
+
+    def _aktualizuj_program(self) -> None:
+        """Skontroluje GitHub a ponúkne stiahnutie a spustenie inštalátora."""
+        def uloha() -> None:
+            try:
+                najnovsia = updater.zisti_najnovsiu_verziu()
+            except Exception as e:
+                self.after(
+                    0,
+                    lambda e=e: messagebox.showerror(
+                        "Aktualizácia",
+                        "Nepodarilo sa zistiť najnovšiu verziu.\n"
+                        f"Skontrolujte pripojenie na internet.\n\n{e}",
+                        parent=self,
+                    ),
+                )
+                return
+            self.after(0, lambda: self._po_zisteni_verzie(najnovsia))
+
+        threading.Thread(target=uloha, daemon=True).start()
+
+    def _po_zisteni_verzie(self, najnovsia: str) -> None:
+        if not updater.je_novsia(najnovsia):
+            messagebox.showinfo(
+                "Aktualizácia",
+                f"Máte najnovšiu verziu ({__version__}).",
+                parent=self,
+            )
+            return
+        if not messagebox.askyesno(
+            "Aktualizácia",
+            f"Je dostupná novšia verzia {najnovsia} (máte {__version__}).\n"
+            "Stiahnuť a nainštalovať teraz?",
+            parent=self,
+        ):
+            return
+
+        def stiahnut() -> None:
+            try:
+                cesta = updater.stiahni_instalator()
+            except Exception as e:
+                self.after(
+                    0,
+                    lambda e=e: messagebox.showerror(
+                        "Aktualizácia", f"Sťahovanie zlyhalo:\n{e}", parent=self
+                    ),
+                )
+                return
+            self.after(0, lambda: self._spusti_instalator(cesta))
+
+        threading.Thread(target=stiahnut, daemon=True).start()
+
+    def _spusti_instalator(self, cesta: str) -> None:
+        if sys.platform != "win32":
+            messagebox.showinfo(
+                "Aktualizácia",
+                f"Inštalátor je stiahnutý tu:\n{cesta}\nSpustite ho ručne.",
+                parent=self,
+            )
+            return
+        messagebox.showinfo(
+            "Aktualizácia",
+            "Spustí sa inštalátor novej verzie. Program sa teraz zatvorí, "
+            "po inštalácii ho spustite znova.",
+            parent=self,
+        )
+        os.startfile(cesta)
+        self.destroy()
 
 
 def main() -> None:
