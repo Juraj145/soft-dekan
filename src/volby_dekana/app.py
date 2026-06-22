@@ -18,8 +18,10 @@ from .models import POCET_KOMISIA, POCET_RIADKOV_MIESTA, Zhromazdenie
 from .poradie_okno import PoradiePanel
 from .quorum import vyhodnot_kvorum
 from .resources import (
+    NAZOV_PRIECINKA_KANDIDATI,
     cesta_k_asetu,
     cesta_k_uvodnemu_obrazku,
+    priecinok_kandidatov,
     priecinok_udajov,
 )
 from . import updater
@@ -120,6 +122,7 @@ class App(tk.Tk):
         self.panel_komisia = KomisiaPanel(self.kontajner, self.z)
         self.panel_kandidati = KandidatiPanel(self.kontajner, self.z)
         self.panel_poradie = PoradiePanel(self.kontajner, self.z)
+        self.panel_poradie.on_dokoncene = self._poradie_dokoncene
         self.volba_stav = VolbaStav()
         self.panel_kolo1 = KoloPanel(self.kontajner, self.z, 1, self.volba_stav)
         self.panel_kolo2 = KoloPanel(self.kontajner, self.z, 2, self.volba_stav)
@@ -392,6 +395,27 @@ class App(tk.Tk):
         else:
             self.btn_dalej.config(state="normal")
             self.lbl_nav_info.config(text="")
+
+    def _poradie_dokoncene(self) -> None:
+        """Po vyžrebovaní poradia ho uloží a sprístupní tlačidlo Ďalej."""
+        try:
+            self._uloz_poradie()
+        except OSError:
+            pass
+        self._aktualizuj_nav()
+
+    def _uloz_poradie(self) -> None:
+        """Uloží kandidátov s vyžrebovaným poradím (do aktívneho súboru aj na disk)."""
+        if self._aktualna_cesta:
+            self._zber_vstupy()
+            with open(self._aktualna_cesta, "w", encoding="utf-8") as f:
+                json.dump(self.z.to_dict(), f, ensure_ascii=False, indent=2)
+        priecinok = priecinok_kandidatov()
+        os.makedirs(priecinok, exist_ok=True)
+        cesta = os.path.join(priecinok, f"{NAZOV_PRIECINKA_KANDIDATI}.json")
+        data = {"kandidati": [k.to_dict() for k in self.z.kandidati]}
+        with open(cesta, "w", encoding="utf-8") as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
 
     def _dalej(self) -> None:
         self._zber_vstupy()

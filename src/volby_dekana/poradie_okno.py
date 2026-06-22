@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import random
 import tkinter as tk
+from collections.abc import Callable
 from tkinter import ttk
 
 from .models import Kandidat, Zhromazdenie
@@ -20,6 +21,7 @@ class PoradiePanel(ttk.Frame):
     def __init__(self, parent: tk.Misc, z: Zhromazdenie) -> None:
         super().__init__(parent)
         self.z = z
+        self.on_dokoncene: Callable[[], None] | None = None
         self._poradie_drawn: list[Kandidat] = []
         self._volne: list[int] = []
         self._rolling = False
@@ -150,6 +152,8 @@ class PoradiePanel(ttk.Frame):
         self._vykresli()
         if self._poradie_drawn:
             self.btn_krok.focus_set()
+        elif self.on_dokoncene is not None:
+            self.on_dokoncene()
 
     def _zrus_rolovanie(self) -> None:
         self._rolling = False
