@@ -104,8 +104,8 @@ def _vypln_miesto_a_datum(doc: Document, z: Zhromazdenie) -> None:
 
 def _vypln_clenov(doc: Document, z: Zhromazdenie) -> None:
     table = doc.tables[_TAB_CLENOVIA]
-    mena = [c.cele_meno for c in z.clenovia_zoradeni()]
-    pocet = max(z.celkovy_pocet, len(mena))
+    clenovia = z.clenovia_zoradeni()
+    pocet = max(z.celkovy_pocet, len(clenovia))
 
     while len(table.rows) - 1 < pocet:
         _klon_riadku(table, table.rows[-1])
@@ -115,8 +115,16 @@ def _vypln_clenov(doc: Document, z: Zhromazdenie) -> None:
     for i in range(pocet):
         bunky = table.rows[i + 1].cells
         _nastav_text_bunky(bunky[0], f"{i + 1}.")
-        _nastav_text_bunky(bunky[1], mena[i] if i < len(mena) else "")
-        _nastav_text_bunky(bunky[2], "")
+        if i < len(clenovia):
+            c = clenovia[i]
+            _nastav_text_bunky(bunky[1], c.cele_meno)
+            _nastav_text_bunky(
+                bunky[2],
+                "ospravedlnený/-á" if c.stav == Stav.OSPRAVEDLNENY else "",
+            )
+        else:
+            _nastav_text_bunky(bunky[1], "")
+            _nastav_text_bunky(bunky[2], "")
 
 
 def _precisluj_hosti(doc: Document) -> None:
