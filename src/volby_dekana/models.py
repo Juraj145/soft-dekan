@@ -118,6 +118,8 @@ class Kandidat:
     titul_pred: str = ""
     titul_za: str = ""
     pocet_navrhov: int = 0
+    hlasy_k1: int = 0
+    hlasy_k2: int = 0
     dokumenty: dict[str, Material] = field(default_factory=dict)
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
 
@@ -142,6 +144,8 @@ class Kandidat:
             "titul_pred": self.titul_pred,
             "titul_za": self.titul_za,
             "pocet_navrhov": self.pocet_navrhov,
+            "hlasy_k1": self.hlasy_k1,
+            "hlasy_k2": self.hlasy_k2,
             "dokumenty": {k: m.to_dict() for k, m in self.dokumenty.items()},
             "id": self.id,
         }
@@ -154,6 +158,8 @@ class Kandidat:
             titul_pred=d.get("titul_pred", ""),
             titul_za=d.get("titul_za", ""),
             pocet_navrhov=int(d.get("pocet_navrhov", 0)),
+            hlasy_k1=int(d.get("hlasy_k1", 0)),
+            hlasy_k2=int(d.get("hlasy_k2", 0)),
             dokumenty={
                 k: Material.from_dict(v)
                 for k, v in d.get("dokumenty", {}).items()
@@ -178,6 +184,8 @@ class Zhromazdenie:
     materialy_komisie: list[Material] = field(default_factory=list)
     kandidati: list[Kandidat] = field(default_factory=list)
     clenovia: list[Clen] = field(default_factory=list)
+    neplatne_k1: int = 0
+    neplatne_k2: int = 0
 
     @property
     def miesto(self) -> str:
@@ -233,6 +241,8 @@ class Zhromazdenie:
             "materialy_komisie": [m.to_dict() for m in self.materialy_komisie],
             "kandidati": [k.to_dict() for k in self.kandidati],
             "clenovia": [c.to_dict() for c in self.clenovia],
+            "neplatne_k1": self.neplatne_k1,
+            "neplatne_k2": self.neplatne_k2,
         }
 
     @classmethod
@@ -250,6 +260,8 @@ class Zhromazdenie:
             ],
             kandidati=[Kandidat.from_dict(k) for k in d.get("kandidati", [])],
             clenovia=[Clen.from_dict(c) for c in d.get("clenovia", [])],
+            neplatne_k1=int(d.get("neplatne_k1", 0)),
+            neplatne_k2=int(d.get("neplatne_k2", 0)),
         )
 
 

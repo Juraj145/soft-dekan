@@ -134,3 +134,93 @@ def test_kandidati_zoradenie_a_serializacia():
     assert adam.pocet_navrhov == 7
     assert ziak.cele_meno == "Ing. Eva Žiaková, PhD."
     assert ziak.dokument("Životopis").nazov == "cv.pdf"
+
+
+def test_potrebna_vacsina_nadpolovicna():
+    from volby_dekana.volba import potrebna_vacsina
+    assert potrebna_vacsina(20) == 11
+    assert potrebna_vacsina(21) == 11
+    assert potrebna_vacsina(19) == 10
+    assert potrebna_vacsina(0) == 0
+
+
+def test_vyhodnot_kolo_zvoleny_v_prvom_kole():
+    from volby_dekana.volba import vyhodnot_kolo
+    kandidati = [
+        Kandidat(meno="A", priezvisko="Adam", hlasy_k1=11),
+        Kandidat(meno="B", priezvisko="Boris", hlasy_k1=5),
+        Kandidat(meno="C", priezvisko="Cyril", hlasy_k1=2),
+    ]
+    v = vyhodnot_kolo(kandidati, 1, 20)
+    assert v.zvoleny is not None
+    assert v.zvoleny.priezvisko == "Adam"
+    assert v.postupujuci == []
+
+
+def test_vyhodnot_kolo_postup_dvoch_pri_zhode():
+    from volby_dekana.volba import vyhodnot_kolo
+    kandidati = [
+        Kandidat(meno="A", priezvisko="Gálik", hlasy_k1=8),
+        Kandidat(meno="B", priezvisko="Tkáč", hlasy_k1=8),
+        Kandidat(meno="C", priezvisko="Novák", hlasy_k1=2),
+    ]
+    v = vyhodnot_kolo(kandidati, 1, 20)
+    assert v.zvoleny is None
+    assert {k.priezvisko for k in v.postupujuci} == {"Gálik", "Tkáč"}
+    # Poradie je zostupne podľa hlasov.
+    assert v.poradie[0][1] >= v.poradie[-1][1]
+
+
+def test_vyhodnot_kolo2_zvoleny():
+    from volby_dekana.volba import vyhodnot_kolo
+    kandidati = [
+        Kandidat(meno="A", priezvisko="Gálik", hlasy_k2=5),
+        Kandidat(meno="B", priezvisko="Tkáč", hlasy_k2=13),
+    ]
+    v = vyhodnot_kolo(kandidati, 2, 20)
+    assert v.zvoleny is not None
+    assert v.zvoleny.priezvisko == "Tkáč"
+
+
+def test_hlasy_serializacia():
+    z = Zhromazdenie(celkovy_pocet=20, neplatne_k1=2, neplatne_k2=1)
+    z.kandidati = [Kandidat(meno="A", priezvisko="Adam", hlasy_k1=8, hlasy_k2=13)]
+    z2 = Zhromazdenie.from_dict(z.to_dict())
+    assert z2.neplatne_k1 == 2
+    assert z2.neplatne_k2 == 1
+    assert z2.kandidati[0].hlasy_k1 == 8
+    assert z2.kandidati[0].hlasy_k2 == 13
+
+
+def test_hlasovaci_listok_z_predlohy():
+    from volby_dekana.docx_export import vytvor_hlasovaci_listok
+    z = Zhromazdenie(celkovy_pocet=20, datum="22.06.2026")
+    z.kandidati = [
+        Kandidat(meno="Roman", priezvisko="Gálik", titul_pred="prof. Ing.", titul_za="PhD."),
+        Kandidat(meno="Zdenko", priezvisko="Tkáč", titul_pred="prof. Ing.", titul_za="PhD."),
+    ]
+    doc = vytvor_hlasovaci_listok(z, 1, z.kandidati_zoradeni())
+    texty = [p.text for p in doc.paragraphs]
+    assert any("1. kolo volieb" in t for t in texty)
+    assert any("22.06.2026" in t for t in texty)
+    tab = doc.tables[1]
+    assert len(tab.rows) == 3  # hlavička + 2 kandidáti
+    assert "Gálik" in tab.rows[1].cells[1].text
+
+
+def test_zapisnica_z_predlohy_postup_do_2_kola():
+    from volby_dekana.docx_export import vytvor_zapisnicu
+    z = Zhromazdenie(celkovy_pocet=20, datum="22.06.2026", neplatne_k1=2)
+    z.clenovia = [_clen(f"P{i:02d}") for i in range(18)]
+    z.clenovia += [_clen(f"O{i:02d}", Stav.OSPRAVEDLNENY) for i in range(2)]
+    z.kandidati = [
+        Kandidat(meno="Roman", priezvisko="Gálik", hlasy_k1=8, hlasy_k2=5),
+        Kandidat(meno="Zdenko", priezvisko="Tkáč", hlasy_k1=8, hlasy_k2=13),
+        Kandidat(meno="Jan", priezvisko="Novák", hlasy_k1=2),
+    ]
+    doc = vytvor_zapisnicu(z)
+    texty = "\n".join(p.text for p in doc.paragraphs)
+    assert "1. kolo bolo neúspešné" in texty
+    assert "Do 2. kola postupujú" in texty
+    assert "ZVOLENÝ" in texty
+    assert "Tkáč" in texty

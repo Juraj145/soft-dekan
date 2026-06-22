@@ -12,6 +12,7 @@ from . import __version__
 from .dialogs import ClenDialog
 from .docx_export import uloz_prezencnu_listinu
 from .kandidati_okno import KandidatiPanel
+from .kolo_okno import KoloPanel
 from .komisia_okno import KomisiaPanel
 from .models import POCET_KOMISIA, POCET_RIADKOV_MIESTA, Zhromazdenie
 from .quorum import vyhodnot_kvorum
@@ -113,10 +114,12 @@ class App(tk.Tk):
         self.stranka_listina = self._vytvor_stranku_listina(self.kontajner)
         self.panel_komisia = KomisiaPanel(self.kontajner, self.z)
         self.panel_kandidati = KandidatiPanel(self.kontajner, self.z)
+        self.panel_kolo = KoloPanel(self.kontajner, self.z)
         self._stranky = [
-            ("Krok 1 z 3 – Prezenčná listina", self.stranka_listina),
-            ("Krok 2 z 3 – Volebná komisia", self.panel_komisia),
-            ("Krok 3 z 3 – Kandidáti na dekana TF", self.panel_kandidati),
+            ("Krok 1 z 4 – Prezenčná listina", self.stranka_listina),
+            ("Krok 2 z 4 – Volebná komisia", self.panel_komisia),
+            ("Krok 3 z 4 – Kandidáti na dekana TF", self.panel_kandidati),
+            ("Krok 4 z 4 – 1. a 2. kolo voľby", self.panel_kolo),
         ]
         self._zobraz_stranku()
 
@@ -284,10 +287,17 @@ class App(tk.Tk):
         elif panel is self.panel_kandidati:
             self.panel_kandidati.z = self.z
             self.panel_kandidati.obnov()
+        elif panel is self.panel_kolo:
+            self.panel_kolo.z = self.z
+            self.panel_kolo.obnov()
         self._aktualizuj_nav()
 
     def _chybajuce_udaje(self, index: int) -> list[str]:
         """Zoznam povinných údajov, ktoré na danom kroku ešte chýbajú."""
+        if index == 2:
+            if len(self.z.kandidati) < 2:
+                return ["aspoň dvoch kandidátov na dekana"]
+            return []
         if index != 0:
             return []
         self._zber_vstupy()
@@ -382,6 +392,9 @@ class App(tk.Tk):
         if hasattr(self, "panel_kandidati"):
             self.panel_kandidati.z = self.z
             self.panel_kandidati.obnov()
+        if hasattr(self, "panel_kolo"):
+            self.panel_kolo.z = self.z
+            self.panel_kolo.obnov()
         if hasattr(self, "btn_dalej"):
             self._aktualizuj_nav()
 
