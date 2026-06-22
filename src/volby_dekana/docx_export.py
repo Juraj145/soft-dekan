@@ -367,7 +367,16 @@ def vytvor_zapisnicu(z: Zhromazdenie) -> Document:
 
 
 def _vypln_miesto_zapisnica(doc: Document, z: Zhromazdenie) -> None:
-    """Adresu miesta konania vypíše po riadkoch zarovnanú k pravému okraju."""
+    """Adresu miesta konania zarovná k pravému okraju.
+
+    Prvý riadok adresy je na rovnakom riadku ako popis „Miesto konania:"
+    (cez pravý tabulátor predlohy), ďalšie riadky pod ním sú zarovnané vpravo.
+    Odstráni aj nepoužitý riadok „Čas vyhotovenia zápisnice".
+    """
+    for p in list(doc.paragraphs):
+        if p.text.strip().startswith("Čas vyhotovenia zápisnice"):
+            _odstran_odsek(p)
+
     odseky = doc.paragraphs
     i = next(
         (i for i, p in enumerate(odseky)
@@ -377,8 +386,11 @@ def _vypln_miesto_zapisnica(doc: Document, z: Zhromazdenie) -> None:
     if i is None:
         return
     riadky = [r.strip() for r in z.miesto_riadky if r.strip()]
+    if not riadky:
+        return
+    _nastav_za_tabulatorom(odseky[i], riadky[0])
     posledny = odseky[i]
-    for hodnota in riadky:
+    for hodnota in riadky[1:]:
         novy = _klon_odseku_za(posledny)
         _nastav_odsek_text(novy, hodnota)
         novy.alignment = WD_ALIGN_PARAGRAPH.RIGHT
