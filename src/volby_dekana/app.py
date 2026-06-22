@@ -100,6 +100,10 @@ class App(tk.Tk):
         self.btn_spat.pack(side="left")
         self.btn_dalej = ttk.Button(navlista, text="Ďalej ▶", command=self._dalej)
         self.btn_dalej.pack(side="right")
+        self.lbl_nav_info = tk.Label(
+            root, text="", fg="#b00020", justify="left", anchor="w", wraplength=900
+        )
+        self.lbl_nav_info.pack(side="bottom", fill="x", pady=(6, 0))
 
         # --- Kontajner stránok sprievodcu ---
         self.kontajner = ttk.Frame(root)
@@ -230,21 +234,60 @@ class App(tk.Tk):
         nazov, panel = self._stranky[self._index]
         panel.pack(fill="both", expand=True)
         self.lbl_krok.config(text=nazov)
-        self.btn_spat.config(
-            state="normal" if self._index > 0 else "disabled"
-        )
-        self.btn_dalej.config(
-            state="normal" if self._index < len(self._stranky) - 1 else "disabled"
-        )
         if panel is self.panel_komisia:
             self.panel_komisia.z = self.z
             self.panel_komisia.obnov()
         elif panel is self.panel_kandidati:
             self.panel_kandidati.z = self.z
             self.panel_kandidati.obnov()
+        self._aktualizuj_nav()
+
+    def _chybajuce_udaje(self, index: int) -> list[str]:
+        """Zoznam povinných údajov, ktoré na danom kroku ešte chýbajú."""
+        if index != 0:
+            return []
+        self._zber_vstupy()
+        chyby: list[str] = []
+        if self.z.celkovy_pocet <= 0:
+            chyby.append("celkový počet členov")
+        if not self.z.miesto.strip():
+            chyby.append("miesto konania")
+        if not self.z.datum:
+            chyby.append("dátum konania")
+        if not self.z.obdobie_od:
+            chyby.append("funkčné obdobie od")
+        if not self.z.obdobie_do:
+            chyby.append("funkčné obdobie do")
+        if not self.z.clenovia:
+            chyby.append("členov prezenčnej listiny")
+        if len(self.z.komisia_ids) != POCET_KOMISIA:
+            chyby.append(
+                f"volebnú komisiu ({len(self.z.komisia_ids)}/{POCET_KOMISIA} členov)"
+            )
+        elif self.z.predseda_komisie_id is None:
+            chyby.append("predsedu komisie")
+        return chyby
+
+    def _aktualizuj_nav(self) -> None:
+        self.btn_spat.config(state="normal" if self._index > 0 else "disabled")
+        posledny = self._index >= len(self._stranky) - 1
+        chyby = self._chybajuce_udaje(self._index)
+        if posledny:
+            self.btn_dalej.config(state="disabled")
+            self.lbl_nav_info.config(text="")
+        elif chyby:
+            self.btn_dalej.config(state="disabled")
+            self.lbl_nav_info.config(
+                text="Pre pokračovanie doplňte: " + ", ".join(chyby) + "."
+            )
+        else:
+            self.btn_dalej.config(state="normal")
+            self.lbl_nav_info.config(text="")
 
     def _dalej(self) -> None:
         self._zber_vstupy()
+        if self._chybajuce_udaje(self._index):
+            return
         if self._index < len(self._stranky) - 1:
             self._index += 1
             self._zobraz_stranku()
@@ -295,6 +338,8 @@ class App(tk.Tk):
         if hasattr(self, "panel_kandidati"):
             self.panel_kandidati.z = self.z
             self.panel_kandidati.obnov()
+        if hasattr(self, "btn_dalej"):
+            self._aktualizuj_nav()
 
     def _prepocitaj(self) -> None:
         self._zber_vstupy()
@@ -314,6 +359,8 @@ class App(tk.Tk):
             self.lbl_stav.config(
                 text=f"NEUZNÁŠANIASCHOPNÉ\n(chýba {chyba})", fg="#b00020"
             )
+        if hasattr(self, "btn_dalej"):
+            self._aktualizuj_nav()
 
     # ---------------------------------------------------------------- akcie
     def _pridaj(self) -> None:

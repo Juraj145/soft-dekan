@@ -1,6 +1,7 @@
 """Panel kandidátov na dekana TF s návrhmi a dokumentmi."""
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import sys
@@ -14,7 +15,7 @@ from .models import (
     Material,
     Zhromazdenie,
 )
-from .resources import priecinok_kandidatov
+from .resources import NAZOV_PRIECINKA_KANDIDATI, priecinok_kandidatov
 
 
 class KandidatiPanel(ttk.Frame):
@@ -44,6 +45,12 @@ class KandidatiPanel(ttk.Frame):
         ttk.Button(panel, text="Odstrániť", command=self._odstran).pack(
             side="left", padx=2
         )
+        ttk.Button(
+            panel, text="Uložiť kandidátov…", command=self._uloz_kandidatov
+        ).pack(side="left", padx=(16, 2))
+        ttk.Button(
+            panel, text="Načítať kandidátov…", command=self._nacitaj_kandidatov
+        ).pack(side="left", padx=2)
 
         stlpce = ("priezvisko", "meno", "titul", "navrhy", "dokumenty")
         self.tree_k = ttk.Treeview(
@@ -258,5 +265,62 @@ class KandidatiPanel(ttk.Frame):
         ):
             return
         del k.dokumenty[typ]
+        self._obnov_kandidatov()
+        self._obnov_dokumenty()
+
+    # ------------------------------------------------------- ukladanie/načítanie
+    def _uloz_kandidatov(self) -> None:
+        if not self.z.kandidati:
+            messagebox.showinfo(
+                "Kandidáti", "Najprv pridajte aspoň jedného kandidáta.", parent=self
+            )
+            return
+        priecinok = priecinok_kandidatov()
+        cesta = filedialog.asksaveasfilename(
+            parent=self,
+            title="Uložiť kandidátov na dekana",
+            defaultextension=".json",
+            initialdir=priecinok,
+            initialfile=f"{NAZOV_PRIECINKA_KANDIDATI}.json",
+            filetypes=[("Súbor kandidátov", "*.json")],
+        )
+        if not cesta:
+            return
+        data = {"kandidati": [k.to_dict() for k in self.z.kandidati]}
+        try:
+            with open(cesta, "w", encoding="utf-8") as f:
+                json.dump(data, f, ensure_ascii=False, indent=2)
+        except OSError as e:
+            messagebox.showerror(
+                "Kandidáti", f"Uloženie zlyhalo:\n{e}", parent=self
+            )
+            return
+        messagebox.showinfo(
+            "Kandidáti",
+            "Kandidáti na dekana boli uložení.\n"
+            f"Dokumenty sú v priečinku:\n{priecinok}",
+            parent=self,
+        )
+
+    def _nacitaj_kandidatov(self) -> None:
+        cesta = filedialog.askopenfilename(
+            parent=self,
+            title="Načítať kandidátov na dekana",
+            initialdir=priecinok_kandidatov(),
+            filetypes=[("Súbor kandidátov", "*.json")],
+        )
+        if not cesta:
+            return
+        try:
+            with open(cesta, encoding="utf-8") as f:
+                data = json.load(f)
+        except (OSError, ValueError) as e:
+            messagebox.showerror(
+                "Kandidáti", f"Načítanie zlyhalo:\n{e}", parent=self
+            )
+            return
+        self.z.kandidati = [
+            Kandidat.from_dict(k) for k in data.get("kandidati", [])
+        ]
         self._obnov_kandidatov()
         self._obnov_dokumenty()

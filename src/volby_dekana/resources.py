@@ -6,7 +6,7 @@ import sys
 
 NAZOV_PRIECINKA_UDAJE = "Vstupné údaje"
 NAZOV_PRIECINKA_ZAPISNICE = "Zápisnice komisie"
-NAZOV_PRIECINKA_KANDIDATI = "Dokumenty kandidátov"
+NAZOV_PRIECINKA_KANDIDATI = "Kandidáti na dekana a dokumenty"
 
 
 def cesta_k_asetu(nazov: str) -> str:
