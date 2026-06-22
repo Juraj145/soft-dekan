@@ -1,0 +1,23 @@
+VOĽBY DEKANA TF SPU – inštalačný program
+=========================================
+
+V tomto priečinku je hotový inštalátor aplikácie:
+
+    VolbyDekana-Setup.exe
+
+AKO NAINŠTALOVAŤ
+----------------
+1. Dvakrát klikni na VolbyDekana-Setup.exe.
+2. Ak Windows zobrazí "Windows ochránil váš počítač" (SmartScreen),
+   klikni na "Ďalšie informácie" -> "Spustiť aj tak".
+3. Prejdi inštaláciou (môžeš zaškrtnúť vytvorenie zástupcu na ploche).
+4. Aplikácia sa potom spúšťa z ponuky Štart alebo z plochy.
+
+AKO ZÍSKAŤ NOVÚ VERZIU
+----------------------
+V tomto priečinku (naklonovanom z GitHubu) stačí spustiť:
+
+    git pull
+
+a súbor VolbyDekana-Setup.exe sa aktualizuje na najnovšiu verziu.
+Potom znova spusti inštalátor.
