@@ -234,6 +234,7 @@ _ZAP_TAB_REKTOR = 3
 _ZAP_TAB_OSPRAVEDLNENI = 4
 _ZAP_TAB_KANDIDATI = 5
 _ZAP_TAB_SCHVALENI = 6
+_ZAP_TAB_PORADIE = 7
 _ZAP_TAB_VYSLEDOK_K1 = 8
 _ZAP_TAB_VYSLEDOK_K2 = 9
 _ZAP_TAB_PODPISY = 10
@@ -340,6 +341,16 @@ def vytvor_zapisnicu(z: Zhromazdenie) -> Document:
                     for i, k in enumerate(kandidati)])
     _vypln_tabulku(doc.tables[_ZAP_TAB_SCHVALENI],
                    [[f"{i + 1}.", k.cele_meno] for i, k in enumerate(kandidati)])
+
+    # Poradie verejných prezentácií (vyžrebované v kroku 4).
+    poradie_prez = sorted(
+        (k for k in kandidati if k.poradie_prezentacie),
+        key=lambda k: k.poradie_prezentacie,
+    )
+    _vypln_tabulku(
+        doc.tables[_ZAP_TAB_PORADIE],
+        [[f"{k.poradie_prezentacie}.", k.cele_meno] for k in poradie_prez],
+    )
 
     _vypln_tabulku(
         doc.tables[_ZAP_TAB_VYSLEDOK_K1],

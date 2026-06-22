@@ -120,6 +120,7 @@ class Kandidat:
     pocet_navrhov: int = 0
     hlasy_k1: int = 0
     hlasy_k2: int = 0
+    poradie_prezentacie: int = 0
     dokumenty: dict[str, Material] = field(default_factory=dict)
     id: str = field(default_factory=lambda: uuid.uuid4().hex)
 
@@ -146,6 +147,7 @@ class Kandidat:
             "pocet_navrhov": self.pocet_navrhov,
             "hlasy_k1": self.hlasy_k1,
             "hlasy_k2": self.hlasy_k2,
+            "poradie_prezentacie": self.poradie_prezentacie,
             "dokumenty": {k: m.to_dict() for k, m in self.dokumenty.items()},
             "id": self.id,
         }
@@ -160,6 +162,7 @@ class Kandidat:
             pocet_navrhov=int(d.get("pocet_navrhov", 0)),
             hlasy_k1=int(d.get("hlasy_k1", 0)),
             hlasy_k2=int(d.get("hlasy_k2", 0)),
+            poradie_prezentacie=int(d.get("poradie_prezentacie", 0)),
             dokumenty={
                 k: Material.from_dict(v)
                 for k, v in d.get("dokumenty", {}).items()

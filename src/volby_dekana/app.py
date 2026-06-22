@@ -15,6 +15,7 @@ from .kandidati_okno import KandidatiPanel
 from .kolo_okno import KoloPanel, VolbaStav
 from .komisia_okno import KomisiaPanel
 from .models import POCET_KOMISIA, POCET_RIADKOV_MIESTA, Zhromazdenie
+from .poradie_okno import PoradiePanel
 from .quorum import vyhodnot_kvorum
 from .resources import (
     cesta_k_asetu,
@@ -118,17 +119,19 @@ class App(tk.Tk):
         self.stranka_listina = self._vytvor_stranku_listina(self.kontajner)
         self.panel_komisia = KomisiaPanel(self.kontajner, self.z)
         self.panel_kandidati = KandidatiPanel(self.kontajner, self.z)
+        self.panel_poradie = PoradiePanel(self.kontajner, self.z)
         self.volba_stav = VolbaStav()
         self.panel_kolo1 = KoloPanel(self.kontajner, self.z, 1, self.volba_stav)
         self.panel_kolo2 = KoloPanel(self.kontajner, self.z, 2, self.volba_stav)
         self.panel_kolo1.on_zmena = self._aktualizuj_nav
         self.panel_kolo2.on_zmena = self._aktualizuj_nav
         self._stranky = [
-            ("Krok 1 z 5 – Prezenčná listina", self.stranka_listina),
-            ("Krok 2 z 5 – Volebná komisia", self.panel_komisia),
-            ("Krok 3 z 5 – Kandidáti na dekana TF", self.panel_kandidati),
-            ("Krok 4 z 5 – 1. kolo voľby", self.panel_kolo1),
-            ("Krok 5 z 5 – 2. kolo voľby", self.panel_kolo2),
+            ("Krok 1 z 6 – Prezenčná listina", self.stranka_listina),
+            ("Krok 2 z 6 – Volebná komisia", self.panel_komisia),
+            ("Krok 3 z 6 – Kandidáti na dekana TF", self.panel_kandidati),
+            ("Krok 4 z 6 – Poradie prezentácií", self.panel_poradie),
+            ("Krok 5 z 6 – 1. kolo voľby", self.panel_kolo1),
+            ("Krok 6 z 6 – 2. kolo voľby", self.panel_kolo2),
         ]
         self._zobraz_stranku()
 
@@ -319,6 +322,10 @@ class App(tk.Tk):
         elif panel is self.panel_kandidati:
             self.panel_kandidati.z = self.z
             self.panel_kandidati.obnov()
+        elif panel is self.panel_poradie:
+            self.panel_poradie.z = self.z
+            self.panel_poradie.obnov()
+            self.panel_poradie.btn_krok.focus_set()
         elif panel in (self.panel_kolo1, self.panel_kolo2):
             panel.z = self.z
             panel.obnov()
@@ -329,6 +336,11 @@ class App(tk.Tk):
         if index == 2:
             if len(self.z.kandidati) < 2:
                 return ["aspoň dvoch kandidátov na dekana"]
+            return []
+        if index == 3:
+            cisla = sorted(k.poradie_prezentacie for k in self.z.kandidati)
+            if cisla != list(range(1, len(self.z.kandidati) + 1)):
+                return ["vyžrebované poradie prezentácií všetkých kandidátov"]
             return []
         if index != 0:
             return []
