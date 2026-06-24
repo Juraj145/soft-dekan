@@ -226,6 +226,26 @@ def test_zapisnica_z_predlohy_postup_do_2_kola():
     assert "Tkáč" in texty
 
 
+def test_volbastav_reset():
+    from volby_dekana.kolo_okno import VolbaStav
+    from volby_dekana.volba import vyhodnot_kolo
+    stav = VolbaStav()
+    stav.v1 = vyhodnot_kolo(
+        [Kandidat(meno="A", priezvisko="Adam", hlasy_k1=11)], 1, 20
+    )
+    stav.listky_k1 = True
+    stav.prebratie_k1 = True
+    stav.protokol_k1 = True
+    stav.listky_k2 = True
+    stav.reset()
+    assert stav.v1 is None
+    assert stav.v2 is None
+    assert not any(
+        (stav.listky_k1, stav.listky_k2, stav.prebratie_k1,
+         stav.prebratie_k2, stav.protokol_k1, stav.protokol_k2)
+    )
+
+
 def test_obdobie_property():
     z = Zhromazdenie(obdobie_od="2026", obdobie_do="2030")
     assert z.obdobie == "2026 \u2013 2030"

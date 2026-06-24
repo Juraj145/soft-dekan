@@ -67,6 +67,11 @@ class App(tk.Tk):
             command=self._generuj_listinu,
         )
         m_subor.add_separator()
+        m_subor.add_command(
+            label="Vymazať údaje od Kroku 4 (poradie a hlasovanie)…",
+            command=self._vymaz_od_kroku4,
+        )
+        m_subor.add_separator()
         m_subor.add_command(label="Koniec", command=self.destroy)
         menubar.add_cascade(label="Súbor", menu=m_subor)
 
@@ -593,6 +598,35 @@ class App(tk.Tk):
             v.set("")
         self._obnov_zoznam()
         self._prepocitaj()
+
+    def _vymaz_od_kroku4(self) -> None:
+        """Vymaže len údaje od Kroku 4 (poradie prezentácií a výsledky volieb).
+
+        Údaje z krokov 1–3 (prezenčná listina, volebná komisia, kandidáti)
+        zostávajú zachované.
+        """
+        if not messagebox.askyesno(
+            "Vymazať údaje od Kroku 4",
+            "Vymazať vyžrebované poradie prezentácií a všetky výsledky "
+            "1. a 2. kola voľby?\n\n"
+            "Údaje z krokov 1 – 3 (prezenčná listina, volebná komisia, "
+            "kandidáti) zostanú zachované.",
+            parent=self,
+        ):
+            return
+        for k in self.z.kandidati:
+            k.poradie_prezentacie = 0
+            k.hlasy_k1 = 0
+            k.hlasy_k2 = 0
+        self.z.neplatne_k1 = 0
+        self.z.neplatne_k2 = 0
+        self.volba_stav.reset()
+        if self._index > 3:
+            self._index = 3
+        self._obnov_zoznam()
+        self.panel_poradie.z = self.z
+        self.panel_poradie.obnov()
+        self._zobraz_stranku()
 
     def _uloz(self) -> None:
         self._zber_vstupy()

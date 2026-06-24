@@ -38,6 +38,17 @@ class VolbaStav:
     protokol_k1: bool = False
     protokol_k2: bool = False
 
+    def reset(self) -> None:
+        """Vynuluje stav oboch kôl (výsledky aj vygenerované doklady)."""
+        self.v1 = None
+        self.v2 = None
+        self.listky_k1 = False
+        self.listky_k2 = False
+        self.prebratie_k1 = False
+        self.prebratie_k2 = False
+        self.protokol_k1 = False
+        self.protokol_k2 = False
+
 
 class KoloPanel(ttk.Frame):
     """Jedno kolo voľby kandidáta na dekana (1. alebo 2.)."""
