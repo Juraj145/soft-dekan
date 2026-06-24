@@ -224,3 +224,59 @@ def test_zapisnica_z_predlohy_postup_do_2_kola():
     assert "Do 2. kola postupujú" in texty
     assert "ZVOLENÝ" in texty
     assert "Tkáč" in texty
+
+
+def test_obdobie_property():
+    z = Zhromazdenie(obdobie_od="2026", obdobie_do="2030")
+    assert z.obdobie == "2026 \u2013 2030"
+    assert Zhromazdenie(obdobie_od="2026").obdobie == "2026"
+    assert Zhromazdenie().obdobie == ""
+
+
+def test_otvaranie_overenie_serializacia():
+    z = Zhromazdenie(
+        otvaranie_obalok="11.06.2026 o 13:00 h",
+        overenie_navrhov="15.06.2026 o 13:00 h",
+    )
+    z2 = Zhromazdenie.from_dict(z.to_dict())
+    assert z2.otvaranie_obalok == "11.06.2026 o 13:00 h"
+    assert z2.overenie_navrhov == "15.06.2026 o 13:00 h"
+
+
+def test_zapisnica_doplni_obdobie_datumy_a_podpisy_bez_predsedu():
+    from volby_dekana.docx_export import vytvor_zapisnicu
+    z = Zhromazdenie(
+        celkovy_pocet=20,
+        datum="22.06.2026",
+        obdobie_od="2026",
+        obdobie_do="2030",
+        otvaranie_obalok="11.06.2026 o 13:00 h",
+        overenie_navrhov="15.06.2026 o 13:00 h",
+    )
+    z.clenovia = [_clen(f"P{i:02d}") for i in range(7)]
+    z.komisia_ids = [c.id for c in z.clenovia[:5]]
+    z.predseda_komisie_id = z.clenovia[0].id
+    z.kandidati = [
+        Kandidat(meno="Roman", priezvisko="Gálik", hlasy_k1=12),
+        Kandidat(meno="Zdenko", priezvisko="Tkáč", hlasy_k1=6),
+    ]
+    doc = vytvor_zapisnicu(z)
+    texty = "\n".join(p.text.replace("\xa0", " ") for p in doc.paragraphs)
+    # Roky funkčného obdobia doplnené za „na funkčné obdobie".
+    assert "na funkčné obdobie 2026 \u2013 2030" in texty
+    # Dátum a čas otvárania obálok a overenia návrhov.
+    assert "Otváranie obálok" in texty
+    assert "sa uskutočnilo dňa 11.06.2026 o 13:00 h." in texty
+    assert "sa uskutočnilo dňa 15.06.2026 o 13:00 h." in texty
+    # Zvýraznený placeholder času vyhlásenia voľby.
+    for p in doc.paragraphs:
+        if "vyhlásil voľbu" in p.text:
+            hl = [r for r in p.runs if r.font.highlight_color]
+            assert len(hl) == 1
+            assert "DOPLNIŤ RUČNE" in hl[0].text
+    # Podpisy členov komisie bez predsedu (komisia má 5, podpisuje 4).
+    podpisy = doc.tables[10]
+    predseda = z.predseda_komisie().cele_meno
+    mena = [podpisy.rows[i].cells[1].text for i in range(1, len(podpisy.rows))]
+    assert len(mena) == 4
+    assert predseda not in mena

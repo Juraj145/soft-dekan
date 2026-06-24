@@ -10,7 +10,7 @@ from __future__ import annotations
 import copy
 
 from docx import Document
-from docx.enum.text import WD_ALIGN_PARAGRAPH
+from docx.enum.text import WD_ALIGN_PARAGRAPH, WD_COLOR_INDEX
 from docx.table import Table, _Row
 from docx.text.paragraph import Paragraph
 
@@ -248,13 +248,18 @@ _ZAP_TAB_VYSLEDOK_K2 = 9
 _ZAP_TAB_PODPISY = 10
 
 
-def _zaver_kolo1(v1: VysledokKola) -> str:
+def _obdobie_suffix(obdobie: str) -> str:
+    return f" {obdobie}" if obdobie.strip() else ""
+
+
+def _zaver_kolo1(v1: VysledokKola, obdobie: str = "") -> str:
     if v1.zvoleny is not None:
         h = v1.zvoleny.hlasy_k1
         return (
             f"Kandidát {v1.zvoleny.cele_meno} získal nadpolovičnú väčšinu všetkých "
             f"členov volebného zhromaždenia ({h} hlasov, min. {v1.potrebna_vacsina}) "
-            "a bol ZVOLENÝ za dekana Technickej fakulty na funkčné obdobie."
+            "a bol ZVOLENÝ za dekana Technickej fakulty na funkčné obdobie"
+            f"{_obdobie_suffix(obdobie)}."
         )
     riadky = "\n".join(
         f" - {k.cele_meno} ({k.hlasy_k1} hlasov)" for k in v1.postupujuci
@@ -266,7 +271,8 @@ def _zaver_kolo1(v1: VysledokKola) -> str:
     )
 
 
-def _zaver_kolo2(v1: VysledokKola, v2: VysledokKola | None) -> str:
+def _zaver_kolo2(v1: VysledokKola, v2: VysledokKola | None,
+                 obdobie: str = "") -> str:
     if v2 is None:
         return "2. kolo sa neuskutočnilo – kandidát bol zvolený v 1. kole."
     if v2.zvoleny is not None:
@@ -274,7 +280,8 @@ def _zaver_kolo2(v1: VysledokKola, v2: VysledokKola | None) -> str:
         return (
             f"Kandidát {v2.zvoleny.cele_meno} získal nadpolovičnú väčšinu všetkých "
             f"členov volebného zhromaždenia ({h} hlasov, min. {v2.potrebna_vacsina}) "
-            "a bol ZVOLENÝ za dekana Technickej fakulty na funkčné obdobie."
+            "a bol ZVOLENÝ za dekana Technickej fakulty na funkčné obdobie"
+            f"{_obdobie_suffix(obdobie)}."
         )
     return (
         "2. kolo bolo neúspešné. Žiadny z kandidátov nezískal nadpolovičnú väčšinu "
@@ -374,13 +381,71 @@ def vytvor_zapisnicu(z: Zhromazdenie) -> Document:
     else:
         _vypln_tabulku(doc.tables[_ZAP_TAB_VYSLEDOK_K2], [["", "", ""]])
 
+    # Podpisy členov volebnej komisie – bez predsedu (ten podpisuje vyššie).
+    podpisujuci = [c for c in komisia if c.id != z.predseda_komisie_id]
     _vypln_tabulku(doc.tables[_ZAP_TAB_PODPISY],
-                   [[f"{i + 1}.", c.cele_meno, ""] for i, c in enumerate(komisia)])
+                   [[f"{i + 1}.", c.cele_meno, ""]
+                    for i, c in enumerate(podpisujuci)])
 
     _vypln_pocty(doc, z, v1, v2)
     _vypln_miesto_zapisnica(doc, z)
-    _vypln_zavery(doc, v1, v2)
+    _vypln_zavery(doc, v1, v2, z.obdobie)
+    _dopln_obdobie_a_vyhlasenie(doc, z)
+    _nastav_datum_udalosti(doc, "Otváranie obálok", z.otvaranie_obalok)
+    _nastav_datum_udalosti(
+        doc, "Overenie platnosti návrhov", z.overenie_navrhov)
     return doc
+
+
+def _norm(text: str) -> str:
+    return text.replace("\xa0", " ")
+
+
+def _dopln_obdobie_a_vyhlasenie(doc: Document, z: Zhromazdenie) -> None:
+    """Doplní roky funkčného obdobia za „na funkčné obdobie".
+
+    V odseku s vyhlásením voľby doplní roky (placeholder programu) a zvýrazní
+    miesto, kam treba ručne doplniť čas vyhlásenia voľby.
+    """
+    obd = z.obdobie
+    for p in doc.paragraphs:
+        runy = p.runs
+        je_placeholder = any(
+            "DOPLNÍ PROGRAM" in r.text or "DOPLNIŤ RUČNE" in r.text
+            for r in runy
+        )
+        if je_placeholder:
+            for r in runy:
+                if "DOPLNÍ PROGRAM" in r.text and obd:
+                    r.text = obd
+                    r.font.highlight_color = None
+                if "DOPLNIŤ RUČNE" in r.text:
+                    r.font.highlight_color = WD_COLOR_INDEX.YELLOW
+            continue
+        if not obd or "funkčné obdobie" not in _norm(p.text):
+            continue
+        for r in runy:
+            jadro = r.text.rstrip()
+            if jadro.endswith("obdobie"):
+                r.text = f"{jadro} {obd}{r.text[len(jadro):]}"
+                break
+
+
+def _nastav_datum_udalosti(doc: Document, prefix: str, hodnota: str) -> None:
+    """Doplní deň a čas za „… sa uskutočnilo dňa" v odseku začínajúcom prefixom."""
+    if not hodnota.strip():
+        return
+    for p in doc.paragraphs:
+        if not _norm(p.text).strip().startswith(prefix):
+            continue
+        for i, r in enumerate(p.runs):
+            if "dňa" in r.text:
+                pos = r.text.rfind("dňa") + len("dňa")
+                r.text = f"{r.text[:pos]} {hodnota.strip()}."
+                for zvysny in p.runs[i + 1:]:
+                    zvysny.text = ""
+                return
+        return
 
 
 def _miesto_riadkovo(doc: Document, z: Zhromazdenie) -> None:
@@ -417,7 +482,8 @@ def _vypln_miesto_zapisnica(doc: Document, z: Zhromazdenie) -> None:
     _miesto_riadkovo(doc, z)
 
 
-def _vypln_zavery(doc: Document, v1: VysledokKola, v2: VysledokKola | None) -> None:
+def _vypln_zavery(doc: Document, v1: VysledokKola, v2: VysledokKola | None,
+                  obdobie: str = "") -> None:
     """Doplní záverové odseky 1. a 2. kola (text podľa výsledku)."""
     odseky = doc.paragraphs
     # Záver 1. kola: odsek pred nadpisom „2. kolo voľby".
@@ -431,13 +497,13 @@ def _vypln_zavery(doc: Document, v1: VysledokKola, v2: VysledokKola | None) -> N
             if t.startswith("1. kolo bolo") or (
                 t.startswith("Kandidát ") and "ZVOLENÝ" in t
             ):
-                _nastav_odsek_text(odseky[i], _zaver_kolo1(v1))
+                _nastav_odsek_text(odseky[i], _zaver_kolo1(v1, obdobie))
                 break
     # Záver 2. kola: posledný odsek so „získal/ZVOLENÝ/neúspešné" za nadpisom.
     for i in range(len(odseky) - 1, (idx_k2 or 0), -1):
         t = odseky[i].text.strip()
         if t.startswith("Kandidát ") and "ZVOLENÝ" in t:
-            _nastav_odsek_text(odseky[i], _zaver_kolo2(v1, v2))
+            _nastav_odsek_text(odseky[i], _zaver_kolo2(v1, v2, obdobie))
             break
 
 

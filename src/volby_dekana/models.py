@@ -182,6 +182,8 @@ class Zhromazdenie:
     datum: str = ""
     obdobie_od: str = ""
     obdobie_do: str = ""
+    otvaranie_obalok: str = ""
+    overenie_navrhov: str = ""
     predseda_komisie_id: str | None = None
     komisia_ids: list[str] = field(default_factory=list)
     materialy_komisie: list[Material] = field(default_factory=list)
@@ -189,6 +191,15 @@ class Zhromazdenie:
     clenovia: list[Clen] = field(default_factory=list)
     neplatne_k1: int = 0
     neplatne_k2: int = 0
+
+    @property
+    def obdobie(self) -> str:
+        """Funkčné obdobie dekana ako 'od – do' (napr. '2026 – 2030')."""
+        od = self.obdobie_od.strip()
+        do = self.obdobie_do.strip()
+        if od and do:
+            return f"{od} \u2013 {do}"
+        return od or do
 
     @property
     def miesto(self) -> str:
@@ -239,6 +250,8 @@ class Zhromazdenie:
             "datum": self.datum,
             "obdobie_od": self.obdobie_od,
             "obdobie_do": self.obdobie_do,
+            "otvaranie_obalok": self.otvaranie_obalok,
+            "overenie_navrhov": self.overenie_navrhov,
             "predseda_komisie_id": self.predseda_komisie_id,
             "komisia_ids": list(self.komisia_ids),
             "materialy_komisie": [m.to_dict() for m in self.materialy_komisie],
@@ -256,6 +269,8 @@ class Zhromazdenie:
             datum=d.get("datum", ""),
             obdobie_od=d.get("obdobie_od", ""),
             obdobie_do=d.get("obdobie_do", ""),
+            otvaranie_obalok=d.get("otvaranie_obalok", ""),
+            overenie_navrhov=d.get("overenie_navrhov", ""),
             predseda_komisie_id=d.get("predseda_komisie_id"),
             komisia_ids=[str(i) for i in d.get("komisia_ids", [])],
             materialy_komisie=[

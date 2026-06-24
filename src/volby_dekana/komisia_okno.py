@@ -22,6 +22,33 @@ class KomisiaPanel(ttk.Frame):
 
     # ------------------------------------------------------------------ build
     def _vytvor_widgety(self) -> None:
+        ramec_term = ttk.LabelFrame(
+            self, text="Termíny zo zasadnutí volebnej komisie", padding=10
+        )
+        ramec_term.pack(fill="x", pady=(0, 6))
+        self.var_otvaranie = tk.StringVar()
+        self.var_overenie = tk.StringVar()
+        self.var_otvaranie.trace_add("write", self._uloz_terminy)
+        self.var_overenie.trace_add("write", self._uloz_terminy)
+        ttk.Label(
+            ramec_term, text="Otváranie obálok – dátum a čas:"
+        ).grid(row=0, column=0, sticky="w", padx=2, pady=2)
+        ttk.Entry(ramec_term, textvariable=self.var_otvaranie, width=40).grid(
+            row=0, column=1, sticky="w", padx=2, pady=2
+        )
+        ttk.Label(
+            ramec_term, text="(napr. 11.06.2026 o 13:00 h)"
+        ).grid(row=0, column=2, sticky="w", padx=6, pady=2)
+        ttk.Label(
+            ramec_term, text="Overenie platnosti návrhov – dátum a čas:"
+        ).grid(row=1, column=0, sticky="w", padx=2, pady=2)
+        ttk.Entry(ramec_term, textvariable=self.var_overenie, width=40).grid(
+            row=1, column=1, sticky="w", padx=2, pady=2
+        )
+        ttk.Label(
+            ramec_term, text="(napr. 15.06.2026 o 13:00 h)"
+        ).grid(row=1, column=2, sticky="w", padx=6, pady=2)
+
         ramec_cl = ttk.LabelFrame(
             self, text="Členovia volebnej komisie", padding=10
         )
@@ -67,8 +94,16 @@ class KomisiaPanel(ttk.Frame):
         scroll.pack(side="right", fill="y")
         self.tree_z.bind("<Double-1>", lambda _e: self._otvor())
 
+    def _uloz_terminy(self, *_args: object) -> None:
+        self.z.otvaranie_obalok = self.var_otvaranie.get().strip()
+        self.z.overenie_navrhov = self.var_overenie.get().strip()
+
     # ----------------------------------------------------------------- refresh
     def obnov(self) -> None:
+        if self.var_otvaranie.get() != self.z.otvaranie_obalok:
+            self.var_otvaranie.set(self.z.otvaranie_obalok)
+        if self.var_overenie.get() != self.z.overenie_navrhov:
+            self.var_overenie.set(self.z.overenie_navrhov)
         self._obnov_clenov()
         self._obnov_materialy()
 
