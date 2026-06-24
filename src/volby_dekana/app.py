@@ -35,6 +35,7 @@ class App(tk.Tk):
         self.title(APP_TITLE)
         self.geometry("960x720")
         self.minsize(820, 640)
+        self._maximalizuj()
 
         self.z = Zhromazdenie()
         self._aktualna_cesta: str | None = None
@@ -200,9 +201,25 @@ class App(tk.Tk):
             self.uvod.destroy()
         self.unbind("<Escape>")
         self.attributes("-fullscreen", False)
-        self.geometry("960x720")
+        self._maximalizuj()
         if hasattr(self, "_menu_bar") and self._menu_bar:
             self.config(menu=self._menu_bar)
+
+    def _maximalizuj(self) -> None:
+        """Maximalizuje okno na celú obrazovku podľa jej veľkosti."""
+        try:
+            self.state("zoomed")
+            return
+        except tk.TclError:
+            pass
+        try:
+            self.attributes("-zoomed", True)
+            return
+        except tk.TclError:
+            pass
+        sirka = self.winfo_screenwidth()
+        vyska = self.winfo_screenheight()
+        self.geometry(f"{sirka}x{vyska}+0+0")
 
     def _vytvor_stranku_listina(self, kontajner: tk.Misc) -> ttk.Frame:
         root = ttk.Frame(kontajner)
