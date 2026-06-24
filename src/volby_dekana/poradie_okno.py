@@ -14,6 +14,10 @@ from tkinter import ttk
 
 from .models import Kandidat, Zhromazdenie
 
+# Interval prekresľovania čísel počas rolovania (ms). Nižšia hodnota = rýchlejšie
+# a plynulejšie zobrazovanie bez trhania.
+_INTERVAL_MS = 25
+
 
 class PoradiePanel(ttk.Frame):
     """Žrebovanie poradia verejných prezentácií kandidátov na dekana."""
@@ -39,7 +43,8 @@ class PoradiePanel(ttk.Frame):
             ramec,
             text=(
                 "Generátor náhodného poradia, v ktorom kandidáti na dekana "
-                "prezentovali stratégie rozvoja Technickej fakulty SPU v Nitre.\n"
+                "budú prezentovať stratégie rozvoja Technickej fakulty "
+                "SPU v Nitre.\n"
                 "Kandidát príde k PC, stlačí Enter pre začiatok žrebovania a "
                 "opätovným Enter žrebovanie ukončí. Počet vyžrebovaných čísel "
                 "zodpovedá počtu kandidátov."
@@ -137,8 +142,15 @@ class PoradiePanel(ttk.Frame):
     def _roluj(self) -> None:
         if not self._volne:
             return
-        self.lbl_cislo.config(text=str(random.choice(self._volne)))
-        self._after_id = self.after(60, self._roluj)
+        # Pri viacerých číslach nikdy nezobrazíme to isté dvakrát po sebe –
+        # rolovanie tak pôsobí plynulo a bez „zaseknutia" na jednom čísle.
+        if len(self._volne) > 1:
+            sucasne = self.lbl_cislo.cget("text")
+            moznosti = [c for c in self._volne if str(c) != sucasne]
+            self.lbl_cislo.config(text=str(random.choice(moznosti)))
+        else:
+            self.lbl_cislo.config(text=str(self._volne[0]))
+        self._after_id = self.after(_INTERVAL_MS, self._roluj)
 
     def _zastav(self) -> None:
         self._zrus_rolovanie()
